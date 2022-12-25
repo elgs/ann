@@ -3,12 +3,7 @@ import * as utils from './utils.ts';
 class Neuron {
   output: number = 0;
   delta: number = 0;
-  activate: Function;
   weights: number[] = [];
-
-  constructor(activate: Function = utils.activations.sigmoid) {
-    this.activate = activate;
-  }
 }
 
 class Layer {
@@ -44,7 +39,7 @@ class Net {
 
   forward(prevOutputs: number[], currLayer: Layer) {
     for (const neuron of currLayer.neurons) {
-      neuron.output = neuron.activate(utils.arrayFunctions.multiply(prevOutputs, neuron.weights));
+      neuron.output = utils.activations.sigmoid(utils.arrayFunctions.multiply(prevOutputs, neuron.weights));
     }
   }
 
@@ -121,6 +116,17 @@ class Net {
     }
   }
 
+  toString() {
+    return JSON.stringify(this, null, 2);
+  }
+
+  static fromString(str: string) {
+    const obj = JSON.parse(str);
+    const net = new Net(obj.inputSize, ...obj.layers.map((layer: Layer) => layer.neurons.length));
+    net.layers = obj.layers;
+    return net;
+  }
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -130,9 +136,18 @@ import test from './test.json' assert { type: 'json' };
 // console.log(train);
 // console.log(test);
 
-const net = new Net(4, 1);
-
-for (let i = 0; i < 10000; ++i) {
+const net = new Net(4, 6, 1);
+const netStr = net.toString();
+console.log(netStr);
+for (let i = 0; i < 100000; ++i) {
   net.trainAll(train);
 }
+const trainedNetStr = net.toString();
+console.log(trainedNetStr);
+
+const net2 = Net.fromString(trainedNetStr);
+const net2Str = net2.toString();
+console.log(net2Str);
+
 net.predictAll(test);
+net2.predictAll(test);

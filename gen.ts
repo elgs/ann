@@ -6,14 +6,14 @@ import * as utils from './utils.ts';
 const gen = (weights: number[]) => {
   const xs: number[] = [];
   const total = weights.reduce((a, w) => {
-    const x = Math.random();
+    const x = Math.random() * 2 - 1;
     xs.push(x);
     return a + w * x;
   }, 0);
   return { in: xs, out: [utils.activations.sigmoid(total)] };
 }
 
-const weights = [.4, .2, 3, .8];
+const weights = [.4, .2, .3, .8];
 
 const train = [];
 for (let i = 0; i < 1000; ++i) {
