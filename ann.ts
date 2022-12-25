@@ -43,6 +43,7 @@ class Net {
     }
   }
 
+  // update output of each neuron in each layer
   forwardAll(input: number[]) {
     let prevOutputs = input;
     for (const layer of this.layers) {
@@ -62,6 +63,7 @@ class Net {
     }
   }
 
+  // update delta of each neuron in each layer
   backwardAll(expected: number[]) {
     const lastLayer = this.layers[this.layers.length - 1];
     for (let i = 0; i < lastLayer.neurons.length; ++i) {
@@ -81,6 +83,7 @@ class Net {
     }
   }
 
+  // update weights of each neuron in each layer
   updateWeightsAll(input: number[]) {
     let prevOutputs = input;
     for (const layer of this.layers) {
@@ -95,15 +98,15 @@ class Net {
     this.updateWeightsAll(input);
   }
 
-  predict(input: number[]) {
-    this.forwardAll(input);
-    return this.layers[this.layers.length - 1].neurons.map((neuron) => neuron.output);
-  }
-
   trainAll(data: { in: number[]; out: number[] }[]) {
     for (const item of data) {
       this.train(item.in, item.out);
     }
+  }
+
+  predict(input: number[]) {
+    this.forwardAll(input);
+    return this.layers[this.layers.length - 1].neurons.map((neuron) => neuron.output);
   }
 
   predictAll(data: { in: number[]; out: number[] }[]) {
