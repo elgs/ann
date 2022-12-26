@@ -4,13 +4,20 @@
 import * as utils from './utils.ts';
 
 const gen = (weights: number[]) => {
-  const xs: number[] = [];
-  const total = weights.reduce((a, w) => {
-    const x = Math.random() * 2 - 1;
-    xs.push(x);
-    return a + w * x;
-  }, 0);
-  return { in: xs, out: [utils.activations.sigmoid(total)] };
+  const xs: number[] = [
+    Math.random() * 2 - 1,
+    Math.random() * 2 - 1,
+    Math.random() * 2 - 1,
+    Math.random() * 2 - 1
+  ];
+  const total = utils.arrayFunctions.multiply(xs, weights);
+  return {
+    in: xs,
+    out: [
+      utils.activations.sigmoid(total),
+      ...weights,
+    ]
+  };
 }
 
 const weights = [.4, .2, .3, .8];

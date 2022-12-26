@@ -111,11 +111,10 @@ class Net {
 
   predictAll(data: { in: number[]; out: number[] }[]) {
     for (const item of data) {
-      const predicted = this.predict(item.in)[0];
-      const expected = item.out[0];
-      const errorPercent = (expected - predicted) / expected * 100;
-      const errorPercentStr = errorPercent.toFixed(2);
-      console.log(`${predicted.toFixed(2)} ${expected.toFixed(2)} ${errorPercentStr}%`);
+      const predicted = this.predict(item.in);
+      const expected = item.out;
+      const error = predicted.map((p, i) => Math.round((p - expected[i]) / expected[i] * 100));
+      console.log(error);
     }
   }
 
@@ -139,14 +138,13 @@ import test from './test.json' assert { type: 'json' };
 // console.log(train);
 // console.log(test);
 
-const net = new Net(4, 6, 1);
+const net = new Net(4, 50, 5);
 const netStr = net.toString();
 console.log(netStr);
-for (let i = 0; i < 100000; ++i) {
+for (let i = 0; i < 10000; ++i) {
   net.trainAll(train);
 }
 const trainedNetStr = net.toString();
-console.log(trainedNetStr);
 
 const net2 = Net.fromString(trainedNetStr);
 const net2Str = net2.toString();
