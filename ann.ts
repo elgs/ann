@@ -85,10 +85,10 @@ class Net {
   updateWeights(currLayer: Layer, prevOutputs: number[], updateWeights = true, actualBatchSize = this.batchSize) {
     for (const neuron of currLayer.neurons) {
       for (let i = 0; i < neuron.weights.length; ++i) {
-        neuron.weightsTmp[i] += 0.1 * neuron.delta * prevOutputs[i] / actualBatchSize;
+        neuron.weightsTmp[i] += neuron.delta * prevOutputs[i]; // accumulate weights
         if (updateWeights) {
-          neuron.weights[i] += neuron.weightsTmp[i];
-          neuron.weightsTmp[i] = 0;
+          neuron.weights[i] += .01 * neuron.weightsTmp[i] / actualBatchSize; // update weights
+          neuron.weightsTmp[i] = 0; // reset weights
         }
       }
     }
