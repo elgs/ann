@@ -4,6 +4,7 @@ class Neuron {
   output: number = 0;
   delta: number = 0;
   weights: number[] = [];
+  weightsTmp: number[] = [];
 }
 
 class Layer {
@@ -18,6 +19,7 @@ class Layer {
 }
 
 class Net {
+  batchSize: number = 32;
   inputSize: number;
   layers: Layer[];
 
@@ -29,14 +31,17 @@ class Net {
       const prevLayerSize = i > 0 ? layerSizes[i - 1] : inputSize;
       for (const neuron of layer.neurons) {
         neuron.weights = new Array(prevLayerSize);
+        neuron.weightsTmp = new Array(prevLayerSize);
         for (let j = 0; j < neuron.weights.length; ++j) {
           neuron.weights[j] = Math.random() * 2 - 1;
+          neuron.weightsTmp[j] = 0;
         }
       }
       this.layers.push(layer);
     }
   }
 
+  // update output of each neuron in a layer
   forward(prevOutputs: number[], currLayer: Layer) {
     for (const neuron of currLayer.neurons) {
       neuron.output = utils.activations.sigmoid(utils.arrayFunctions.multiply(prevOutputs, neuron.weights));
@@ -52,6 +57,7 @@ class Net {
     }
   }
 
+  // update delta of each neuron in a layer
   backward(currLayer: Layer, nextLayer: Layer) {
     for (let i = 0; i < currLayer.neurons.length; ++i) {
       const neuron = currLayer.neurons[i];
@@ -75,47 +81,64 @@ class Net {
     }
   }
 
-  updateWeights(currLayer: Layer, prevOutputs: number[]) {
+  // update weights of each neuron in a layer
+  updateWeights(currLayer: Layer, prevOutputs: number[], updateWeights = true, actualBatchSize = this.batchSize) {
     for (const neuron of currLayer.neurons) {
       for (let i = 0; i < neuron.weights.length; ++i) {
-        neuron.weights[i] += 0.01 * neuron.delta * prevOutputs[i];
+        neuron.weightsTmp[i] += 0.1 * neuron.delta * prevOutputs[i] / actualBatchSize;
+        if (updateWeights) {
+          neuron.weights[i] += neuron.weightsTmp[i];
+          neuron.weightsTmp[i] = 0;
+        }
       }
     }
   }
 
   // update weights of each neuron in each layer
-  updateWeightsAll(input: number[]) {
+  updateWeightsAll(input: number[], updateWeights = true, actualBatchSize = this.batchSize) {
     let prevOutputs = input;
     for (const layer of this.layers) {
-      this.updateWeights(layer, prevOutputs);
+      this.updateWeights(layer, prevOutputs, updateWeights, actualBatchSize);
       prevOutputs = layer.neurons.map((neuron) => neuron.output);
     }
   }
 
-  train(input: number[], expected: number[]) {
+  train(input: number[], expected: number[], updateWeights = true, actualBatchSize = this.batchSize) {
     this.forwardAll(input);
     this.backwardAll(expected);
-    this.updateWeightsAll(input);
+    this.updateWeightsAll(input, updateWeights, actualBatchSize);
   }
 
   trainAll(data: { in: number[]; out: number[] }[]) {
-    for (const item of data) {
-      this.train(item.in, item.out);
+    for (const [i, item] of data.entries()) {
+      const updateWeights = (i % this.batchSize === 0 || i === data.length - 1) && i > 0;
+      const actualBatchSize = i % this.batchSize === 0 ? this.batchSize : i % this.batchSize;
+      this.train(item.in, item.out, updateWeights, actualBatchSize);
     }
   }
 
+  // predict output of each neuron in the last layer
   predict(input: number[]) {
     this.forwardAll(input);
     return this.layers[this.layers.length - 1].neurons.map((neuron) => neuron.output);
   }
 
+  // predict output of each neuron in the last layer for each item in data
   predictAll(data: { in: number[]; out: number[] }[]) {
-    for (const item of data) {
+    const errors = data.map((item) => {
       const predicted = this.predict(item.in);
       const expected = item.out;
-      const error = predicted.map((p, i) => Math.round((p - expected[i]) / expected[i] * 100));
-      console.log(error);
-    }
+      const error = predicted.map((p, i) => Math.abs((p - expected[i]) / expected[i]));
+      return error;
+    });
+
+    const errorsAvg = errors.reduce((acc, curr) => {
+      for (let i = 0; i < acc.length; ++i) {
+        acc[i] += curr[i];
+      }
+      return acc;
+    }, new Array(errors[0].length).fill(0));
+    console.log(errorsAvg.map((e) => e / errors.length));
   }
 
   toString() {
@@ -138,17 +161,20 @@ import test from './test.json' assert { type: 'json' };
 // console.log(train);
 // console.log(test);
 
-const net = new Net(4, 50, 5);
+const net = new Net(4, 1);
 const netStr = net.toString();
 console.log(netStr);
 for (let i = 0; i < 10000; ++i) {
+  const epoch = i;
+  console.log(`epoch: ${epoch}`);
   net.trainAll(train);
+  net.predictAll(test);
 }
 const trainedNetStr = net.toString();
 
 const net2 = Net.fromString(trainedNetStr);
 const net2Str = net2.toString();
-console.log(net2Str);
+// console.log(net2Str);
 
-net.predictAll(test);
-net2.predictAll(test);
+// net.predictAll(test);
+// net2.predictAll(test);

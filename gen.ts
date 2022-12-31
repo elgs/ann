@@ -15,7 +15,6 @@ const gen = (weights: number[]) => {
     in: xs,
     out: [
       utils.activations.sigmoid(total),
-      ...weights,
     ]
   };
 }
