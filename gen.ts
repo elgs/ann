@@ -10,7 +10,7 @@ const gen = (weights: number[]) => {
     Math.random() * 2 - 1,
     Math.random() * 2 - 1
   ];
-  const total = utils.arrayFunctions.multiply(xs, weights);
+  const total = utils.convFunctions.multiply(xs, weights);
   return {
     in: xs,
     out: [
