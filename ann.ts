@@ -44,7 +44,7 @@ class Net {
   // update output of each neuron in a layer
   forward(prevOutputs: number[], currLayer: Layer) {
     for (const neuron of currLayer.neurons) {
-      neuron.output = utils.activations.sigmoid(utils.arrayFunctions.multiply(prevOutputs, neuron.weights));
+      neuron.output = utils.activations.sigmoid(utils.convFunctions.multiply(prevOutputs, neuron.weights));
     }
   }
 
