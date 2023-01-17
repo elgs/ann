@@ -24,19 +24,19 @@ export const convFunctions = {
     const outputWidth = Math.floor((inputWidth + paddingX * 2 - kernelWidth) / strideX) + 1;
     const outputHeight = Math.floor((inputHeight + paddingY * 2 - kernelHeight) / strideY) + 1;
     const output = new Array(outputWidth * outputHeight);
-    for (let y = 0; y < outputHeight; ++y) {
-      for (let x = 0; x < outputWidth; ++x) {
+    for (let oy = 0; oy < outputHeight; ++oy) {
+      for (let ox = 0; ox < outputWidth; ++ox) {
         let sum = 0;
         for (let ky = 0; ky < kernelHeight; ++ky) {
           for (let kx = 0; kx < kernelWidth; ++kx) {
-            const ix = x * strideX + kx - paddingX;
-            const iy = y * strideY + ky - paddingY;
+            const ix = ox * strideX + kx - paddingX;
+            const iy = oy * strideY + ky - paddingY;
             if (ix >= 0 && iy >= 0 && ix < inputWidth && iy < inputHeight) {
               sum += input[iy * inputWidth + ix] * kernel[ky * kernelWidth + kx];
             }
           }
         }
-        output[y * outputWidth + x] = sum;
+        output[oy * outputWidth + ox] = sum;
       }
     }
     return {
@@ -60,19 +60,19 @@ export const convFunctions = {
     const outputWidth = Math.floor((inputWidth + paddingX * 2 - kernelWidth) / strideX) + 1;
     const outputHeight = Math.floor((inputHeight + paddingY * 2 - kernelHeight) / strideY) + 1;
     const output = new Array(outputWidth * outputHeight);
-    for (let y = 0; y < outputHeight; ++y) {
-      for (let x = 0; x < outputWidth; ++x) {
+    for (let oy = 0; oy < outputHeight; ++oy) {
+      for (let ox = 0; ox < outputWidth; ++ox) {
         let max = -Infinity;
         for (let ky = 0; ky < kernelHeight; ++ky) {
           for (let kx = 0; kx < kernelWidth; ++kx) {
-            const ix = x * strideX + kx - paddingX;
-            const iy = y * strideY + ky - paddingY;
+            const ix = ox * strideX + kx - paddingX;
+            const iy = oy * strideY + ky - paddingY;
             if (ix >= 0 && iy >= 0 && ix < inputWidth && iy < inputHeight) {
               max = Math.max(max, input[iy * inputWidth + ix]);
             }
           }
         }
-        output[y * outputWidth + x] = max;
+        output[oy * outputWidth + ox] = max;
       }
     }
     return {
@@ -96,19 +96,19 @@ export const convFunctions = {
     const outputWidth = Math.floor((inputWidth + paddingX * 2 - kernelWidth) / strideX) + 1;
     const outputHeight = Math.floor((inputHeight + paddingY * 2 - kernelHeight) / strideY) + 1;
     const output = new Array(outputWidth * outputHeight);
-    for (let y = 0; y < outputHeight; ++y) {
-      for (let x = 0; x < outputWidth; ++x) {
+    for (let oy = 0; oy < outputHeight; ++oy) {
+      for (let ox = 0; ox < outputWidth; ++ox) {
         let sum = 0;
         for (let ky = 0; ky < kernelHeight; ++ky) {
           for (let kx = 0; kx < kernelWidth; ++kx) {
-            const ix = x * strideX + kx - paddingX;
-            const iy = y * strideY + ky - paddingY;
+            const ix = ox * strideX + kx - paddingX;
+            const iy = oy * strideY + ky - paddingY;
             if (ix >= 0 && iy >= 0 && ix < inputWidth && iy < inputHeight) {
               sum += input[iy * inputWidth + ix];
             }
           }
         }
-        output[y * outputWidth + x] = sum / (kernelWidth * kernelHeight);
+        output[oy * outputWidth + ox] = sum / (kernelWidth * kernelHeight);
       }
     }
     return {
