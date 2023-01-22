@@ -4,7 +4,6 @@ class Neuron {
   output: number = 0;
   delta: number = 0;
   weights: number[] = [];
-  weightsTmp: number[] = [];
 }
 
 class Layer {
@@ -19,7 +18,6 @@ class Layer {
 }
 
 class Net {
-  batchSize: number = 32;
   inputSize: number;
   layers: Layer[];
 
@@ -30,11 +28,9 @@ class Net {
       const layer = new Layer(layerSizes[i]);
       const prevLayerSize = i > 0 ? layerSizes[i - 1] : inputSize;
       for (const neuron of layer.neurons) {
-        neuron.weights = new Array(prevLayerSize);
-        neuron.weightsTmp = new Array(prevLayerSize);
+        neuron.weights = new Array(prevLayerSize); // weights of each neuron in the previous layer
         for (let j = 0; j < neuron.weights.length; ++j) {
           neuron.weights[j] = Math.random() * 2 - 1;
-          neuron.weightsTmp[j] = 0;
         }
       }
       this.layers.push(layer);
@@ -59,11 +55,13 @@ class Net {
 
   // update delta of each neuron in a layer
   backward(currLayer: Layer, nextLayer: Layer) {
-    for (let i = 0; i < currLayer.neurons.length; ++i) {
+    for (let i = 0; i < currLayer.neurons.length; ++i) { // for each neuron in the current layer
       const neuron = currLayer.neurons[i];
       let delta = 0;
-      for (let j = 0; j < nextLayer.neurons.length; ++j) {
-        delta += nextLayer.neurons[j].weights[i] * nextLayer.neurons[j].delta;
+      for (let j = 0; j < nextLayer.neurons.length; ++j) { // for each neuron in the next layer
+        const nextNeuron = nextLayer.neurons[j];
+        // ***MOST IMPORTANT***
+        delta += nextNeuron.weights[i] * nextNeuron.delta; // sum of weights * delta of each neuron in the next layer (backpropagation)
       }
       neuron.delta = delta * neuron.output * (1 - neuron.output);
     }
@@ -82,38 +80,33 @@ class Net {
   }
 
   // update weights of each neuron in a layer
-  updateWeights(currLayer: Layer, prevOutputs: number[], updateWeights = true, actualBatchSize = this.batchSize) {
+  updateWeights(currLayer: Layer, prevOutputs: number[]) {
     for (const neuron of currLayer.neurons) {
-      for (let i = 0; i < neuron.weights.length; ++i) {
-        neuron.weightsTmp[i] += neuron.delta * prevOutputs[i]; // accumulate weights
-        if (updateWeights) {
-          neuron.weights[i] += .01 * neuron.weightsTmp[i] / actualBatchSize; // update weights
-          neuron.weightsTmp[i] = 0; // reset weights
-        }
+      for (let i = 0; i < neuron.weights.length; ++i) { // for each weight of each neuron in the current layer
+        // ***MOST IMPORTANT***
+        neuron.weights[i] += .01 * neuron.delta * prevOutputs[i]; // delta * output of each neuron in the previous layer (gradient descent)
       }
     }
   }
 
   // update weights of each neuron in each layer
-  updateWeightsAll(input: number[], updateWeights = true, actualBatchSize = this.batchSize) {
+  updateWeightsAll(input: number[]) {
     let prevOutputs = input;
     for (const layer of this.layers) {
-      this.updateWeights(layer, prevOutputs, updateWeights, actualBatchSize);
+      this.updateWeights(layer, prevOutputs);
       prevOutputs = layer.neurons.map((neuron) => neuron.output);
     }
   }
 
-  train(input: number[], expected: number[], updateWeights = true, actualBatchSize = this.batchSize) {
+  train(input: number[], expected: number[]) {
     this.forwardAll(input);
     this.backwardAll(expected);
-    this.updateWeightsAll(input, updateWeights, actualBatchSize);
+    this.updateWeightsAll(input);
   }
 
   trainAll(data: { in: number[]; out: number[] }[]) {
     for (const [i, item] of data.entries()) {
-      const updateWeights = (i % this.batchSize === 0 || i === data.length - 1) && i > 0;
-      const actualBatchSize = i % this.batchSize === 0 ? this.batchSize : i % this.batchSize;
-      this.train(item.in, item.out, updateWeights, actualBatchSize);
+      this.train(item.in, item.out);
     }
   }
 

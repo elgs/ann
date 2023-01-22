@@ -11,3 +11,6 @@ deno run --allow-write gen.ts
 ```bash
 deno run ann.ts
 ```
+
+## Resources
+https://www.youtube.com/watch?v=sIX_9n-1UbM
