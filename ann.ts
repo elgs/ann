@@ -59,9 +59,9 @@ class Net {
       const neuron = currLayer.neurons[i];
       let delta = 0;
       for (let j = 0; j < nextLayer.neurons.length; ++j) { // for each neuron in the next layer
-        const nextNeuron = nextLayer.neurons[j];
+        const nextLayerNeuron = nextLayer.neurons[j];
         // ***MOST IMPORTANT***
-        delta += nextNeuron.weights[i] * nextNeuron.delta; // sum of weights * delta of each neuron in the next layer (backpropagation)
+        delta += nextLayerNeuron.weights[i] * nextLayerNeuron.delta; // sum of weights * delta of each neuron in the next layer (backpropagation)
       }
       neuron.delta = delta * neuron.output * (1 - neuron.output);
     }
