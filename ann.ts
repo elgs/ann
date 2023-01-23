@@ -1,5 +1,7 @@
 import * as utils from './utils.ts';
 
+let activation = 'sigmoid';
+
 class Neuron {
   output: number = 0;
   delta: number = 0;
@@ -40,7 +42,11 @@ class Net {
   // update output of each neuron in a layer
   forward(prevOutputs: number[], currLayer: Layer) {
     for (const neuron of currLayer.neurons) {
-      neuron.output = utils.activations.sigmoid(utils.convFunctions.multiply(prevOutputs, neuron.weights));
+      if (activation === 'sigmoid') {
+        neuron.output = utils.activations.sigmoid(utils.convFunctions.multiply(prevOutputs, neuron.weights));
+      } else if (activation === 'relu') {
+        neuron.output = utils.activations.relu(utils.convFunctions.multiply(prevOutputs, neuron.weights));
+      }
     }
   }
 
@@ -63,7 +69,11 @@ class Net {
         // ***MOST IMPORTANT***
         delta += nextLayerNeuron.weights[i] * nextLayerNeuron.delta; // sum of weights * delta of each neuron in the next layer (backpropagation)
       }
-      neuron.delta = delta * neuron.output * (1 - neuron.output);
+      if (activation === 'sigmoid') {
+        neuron.delta = delta * utils.activations.dsigmoid(neuron.output);
+      } else if (activation === 'relu') {
+        neuron.delta = delta * utils.activations.drelu(neuron.output);
+      }
     }
   }
 
@@ -72,7 +82,11 @@ class Net {
     const lastLayer = this.layers[this.layers.length - 1];
     for (let i = 0; i < lastLayer.neurons.length; ++i) {
       const neuron = lastLayer.neurons[i];
-      neuron.delta = (expected[i] - neuron.output) * neuron.output * (1 - neuron.output);
+      if (activation === 'sigmoid') {
+        neuron.delta = (expected[i] - neuron.output) * utils.activations.dsigmoid(neuron.output);
+      } else if (activation === 'relu') {
+        neuron.delta = (expected[i] - neuron.output) * utils.activations.drelu(neuron.output);
+      }
     }
     for (let i = this.layers.length - 2; i >= 0; --i) {
       this.backward(this.layers[i], this.layers[i + 1]);
@@ -81,7 +95,7 @@ class Net {
 
   // update weights of each neuron in a layer
   updateWeights(currLayer: Layer, prevOutputs: number[]) {
-    for (const neuron of currLayer.neurons) {
+    for (const neuron of currLayer.neurons) { // for each neuron in the current layer
       for (let i = 0; i < neuron.weights.length; ++i) { // for each weight of each neuron in the current layer
         // ***MOST IMPORTANT***
         neuron.weights[i] += .01 * neuron.delta * prevOutputs[i]; // delta * output of each neuron in the previous layer (gradient descent)

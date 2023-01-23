@@ -1,6 +1,8 @@
 export const activations = {
   sigmoid: (input: number) => 1 / (1 + Math.exp(-input)),
+  dsigmoid: (input: number) => input * (1 - input),
   relu: (input: number) => Math.max(0, input),
+  drelu: (input: number) => input > 0 ? 1 : 0,
 };
 
 export const convFunctions = {
