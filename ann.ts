@@ -1,6 +1,6 @@
 import * as utils from './utils.ts';
 
-let activation = 'sigmoid';
+let activation = 'relu';
 
 class Neuron {
   output: number = 0;
@@ -53,9 +53,14 @@ class Net {
   // update output of each neuron in each layer
   forwardAll(input: number[]) {
     let prevOutputs = input;
-    for (const layer of this.layers) {
+    for (let i = 0; i < this.layers.length - 1; ++i) {
+      const layer = this.layers[i];
       this.forward(prevOutputs, layer);
       prevOutputs = layer.neurons.map((neuron) => neuron.output);
+    }
+    const lastLayer = this.layers[this.layers.length - 1];
+    for (const neuron of lastLayer.neurons) {
+      neuron.output = utils.convFunctions.multiply(prevOutputs, neuron.weights);
     }
   }
 
@@ -82,11 +87,7 @@ class Net {
     const lastLayer = this.layers[this.layers.length - 1];
     for (let i = 0; i < lastLayer.neurons.length; ++i) {
       const neuron = lastLayer.neurons[i];
-      if (activation === 'sigmoid') {
-        neuron.delta = (expected[i] - neuron.output) * utils.activations.dsigmoid(neuron.output);
-      } else if (activation === 'relu') {
-        neuron.delta = (expected[i] - neuron.output) * utils.activations.drelu(neuron.output);
-      }
+      neuron.delta = (expected[i] - neuron.output);
     }
     for (let i = this.layers.length - 2; i >= 0; --i) {
       this.backward(this.layers[i], this.layers[i + 1]);
@@ -181,7 +182,7 @@ const trainedNetStr = net.toString();
 
 const net2 = Net.fromString(trainedNetStr);
 const net2Str = net2.toString();
-// console.log(net2Str);
+console.log(net2Str);
 
 // net.predictAll(test);
 // net2.predictAll(test);

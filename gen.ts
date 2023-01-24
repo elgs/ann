@@ -5,16 +5,15 @@ import * as utils from './utils.ts';
 
 const gen = (weights: number[]) => {
   const xs: number[] = [
-    Math.random() * 2 - 1,
-    Math.random() * 2 - 1,
-    Math.random() * 2 - 1,
-    Math.random() * 2 - 1
+    Math.random(),
+    Math.random(),
+    Math.random(),
+    Math.random(),
   ];
-  const total = utils.convFunctions.multiply(xs, weights);
   return {
     in: xs,
     out: [
-      utils.activations.sigmoid(total),
+      utils.convFunctions.multiply(xs, weights),
     ]
   };
 }
