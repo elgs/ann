@@ -1,3 +1,7 @@
+// the implementation of a simple feedforward neural network with backpropagation in TypeScript, without using any libraries, only using basic math functions and array operations
+
+// https://www.youtube.com/watch?v=sIX_9n-1UbM
+
 import * as utils from './utils.ts';
 
 let activation = 'sigmoid'; // or 'relu'
