@@ -1,11 +1,12 @@
 import * as utils from './utils.ts';
 
-let activation = 'relu'; // or 'relu', default is sigmoid
+let activation = 'sigmoid'; // or 'relu'
 
 class Neuron {
   output: number = 0;
   delta: number = 0;
   weights: number[] = [];
+  bias: number = 0;
 }
 
 class Layer {
@@ -22,10 +23,12 @@ class Layer {
 class Net {
   inputSize: number;
   layers: Layer[];
+  learningRate: number;
 
-  constructor(inputSize: number, ...layerSizes: number[]) {
+  constructor(inputSize: number, layerSizes: number[], learningRate: number = 0.01) {
     this.inputSize = inputSize;
     this.layers = [];
+    this.learningRate = learningRate;
     for (let i = 0; i < layerSizes.length; ++i) {
       const layer = new Layer(layerSizes[i]);
       const prevLayerSize = i > 0 ? layerSizes[i - 1] : inputSize;
@@ -34,18 +37,22 @@ class Net {
         for (let j = 0; j < neuron.weights.length; ++j) {
           neuron.weights[j] = Math.random() * 2 - 1;
         }
+        neuron.bias = Math.random() * 2 - 1;
       }
       this.layers.push(layer);
     }
   }
 
   // update output of each neuron in a layer
-  forward(prevOutputs: number[], currLayer: Layer) {
+  forward(prevOutputs: number[], currLayer: Layer, isOutputLayer: boolean) {
     for (const neuron of currLayer.neurons) {
-      if (activation === 'sigmoid') {
-        neuron.output = utils.activations.sigmoid(utils.convFunctions.multiply(prevOutputs, neuron.weights));
+      const weightedSum = utils.convFunctions.multiply(prevOutputs, neuron.weights) + neuron.bias;
+      if (isOutputLayer) {
+        neuron.output = weightedSum;
+      } else if (activation === 'sigmoid') {
+        neuron.output = utils.activations.sigmoid(weightedSum);
       } else if (activation === 'relu') {
-        neuron.output = utils.activations.relu(utils.convFunctions.multiply(prevOutputs, neuron.weights));
+        neuron.output = utils.activations.relu(weightedSum);
       }
     }
   }
@@ -55,7 +62,7 @@ class Net {
     let prevOutputs = input;
     for (let i = 0; i < this.layers.length; ++i) {
       const layer = this.layers[i];
-      this.forward(prevOutputs, layer);
+      this.forward(prevOutputs, layer, i === this.layers.length - 1);
       prevOutputs = layer.neurons.map((neuron) => neuron.output);
     }
     // at this point, prevOutputs contains the output of the last layer
@@ -94,11 +101,7 @@ class Net {
     const lastLayer = this.layers[this.layers.length - 1];
     for (let i = 0; i < lastLayer.neurons.length; ++i) {
       const neuron = lastLayer.neurons[i];
-      if (activation === 'sigmoid') {
-        neuron.delta = dLastLayerOutputs[i] * utils.activations.dsigmoid(neuron.output);
-      } else if (activation === 'relu') {
-        neuron.delta = dLastLayerOutputs[i] * utils.activations.drelu(neuron.output);
-      }
+      neuron.delta = dLastLayerOutputs[i];
     }
     for (let i = this.layers.length - 2; i >= 0; --i) {
       this.backward(this.layers[i], this.layers[i + 1]);
@@ -110,8 +113,9 @@ class Net {
     for (const neuron of currLayer.neurons) { // for each neuron in the current layer
       for (let i = 0; i < neuron.weights.length; ++i) { // for each weight of each neuron in the current layer
         // ***MOST IMPORTANT***
-        neuron.weights[i] -= .01 * neuron.delta * prevOutputs[i]; // dweight = learningRate * delta * output of the previous layer
+        neuron.weights[i] -= this.learningRate * neuron.delta * prevOutputs[i]; // dweight = learningRate * delta * output of the previous layer
       }
+      neuron.bias -= this.learningRate * neuron.delta;
     }
   }
 
@@ -127,21 +131,33 @@ class Net {
   train(input: number[], expected: number[]) {
     const softmaxOutputs = this.forwardAll(input);
     const error = utils.activations.crossEntropy(softmaxOutputs, expected);
-    console.log('error:', error, input, softmaxOutputs, expected);
     this.backwardAll(softmaxOutputs, expected);
     this.updateWeightsAll(input);
+    return error;
   }
 
   trainAll(data: { in: number[]; out: number[] }[]) {
-    for (const [i, item] of data.entries()) {
-      this.train(item.in, item.out);
+    utils.shuffle(data);
+    let totalError = 0;
+    for (const item of data) {
+      totalError += this.train(item.in, item.out);
     }
+    return totalError / data.length;
   }
 
   // predict output of each neuron in the last layer
   predict(input: number[]) {
-    this.forwardAll(input);
-    return this.layers[this.layers.length - 1].neurons.map((neuron) => neuron.output);
+    return this.forwardAll(input);
+  }
+
+  argmax(values: number[]) {
+    let maxIndex = 0;
+    for (let i = 1; i < values.length; ++i) {
+      if (values[i] > values[maxIndex]) {
+        maxIndex = i;
+      }
+    }
+    return maxIndex;
   }
 
   // predict output of each neuron in the last layer for each item in data
@@ -149,20 +165,29 @@ class Net {
     const errors = data.map((item) => {
       const predicted = this.predict(item.in);
       const expected = item.out;
-      const error = predicted.map((p, i) => Math.abs((p - expected[i]) / expected[i]));
-      return error;
+      const error = predicted.map((p, i) => Math.abs(p - expected[i]));
+      return {
+        error,
+        loss: utils.activations.crossEntropy(predicted, expected),
+        correct: this.argmax(predicted) === this.argmax(expected),
+      };
     });
 
     const errorsAvg = errors.reduce((acc, curr) => {
       for (let i = 0; i < acc.length; ++i) {
-        acc[i] += curr[i];
+        acc[i] += curr.error[i];
       }
       return acc;
-    }, new Array(errors[0].length).fill(0));
-    // console.log('***********************************');
-    // console.log('errors:', errors);
-    // console.log(errorsAvg.map((e) => e / errors.length));
-    // console.log('***********************************');
+    }, new Array(errors[0].error.length).fill(0));
+
+    const avgLoss = errors.reduce((acc, curr) => acc + curr.loss, 0) / errors.length;
+    const accuracy = errors.reduce((acc, curr) => acc + (curr.correct ? 1 : 0), 0) / errors.length;
+
+    return {
+      avgErrors: errorsAvg.map((e) => e / errors.length),
+      avgLoss,
+      accuracy,
+    };
   }
 
   toString() {
@@ -171,7 +196,7 @@ class Net {
 
   static fromString(str: string) {
     const obj = JSON.parse(str);
-    const net = new Net(obj.inputSize, ...obj.layers.map((layer: Layer) => layer.neurons.length));
+    const net = new Net(obj.inputSize, obj.layers.map((layer: Layer) => layer.neurons.length), obj.learningRate ?? 0.01);
     net.layers = obj.layers;
     return net;
   }
@@ -185,20 +210,20 @@ import test from './test.json' with { type: 'json' };
 // console.log(train);
 // console.log(test);
 
-const net = new Net(2, 3);
+const net = new Net(2, [4, 3], 0.05);
 const netStr = net.toString();
-console.log(netStr);
-for (let i = 0; i < 100; ++i) {
+for (let i = 0; i < 200; ++i) {
   const epoch = i;
-  console.log(`epoch: ${epoch}`);
-  net.trainAll(train);
-  net.predictAll(test);
+  const trainLoss = net.trainAll(train);
+  const metrics = net.predictAll(test);
+  console.log(
+    `epoch ${epoch}: trainLoss=${trainLoss.toFixed(6)} testLoss=${metrics.avgLoss.toFixed(6)} accuracy=${(metrics.accuracy * 100).toFixed(2)}% avgErrors=${metrics.avgErrors.map((e) => e.toFixed(6)).join(', ')}`,
+  );
 }
 const trainedNetStr = net.toString();
 
 const net2 = Net.fromString(trainedNetStr);
 const net2Str = net2.toString();
-console.log(net2Str);
 
 // net.predictAll(test);
 // net2.predictAll(test);

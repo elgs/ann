@@ -1,9 +1,6 @@
 export const activations = {
   sigmoid: (input: number) => 1 / (1 + Math.exp(-input)),
-  dsigmoid: function (input: number) {
-    const sig = this.sigmoid(input);
-    return sig * (1 - sig);
-  },
+  dsigmoid: (output: number) => output * (1 - output),
   relu: (input: number) => Math.max(0, input),
   drelu: (output: number) => output > 0 ? 1 : 0,
   softmax: function (input: number[]) {
@@ -13,7 +10,7 @@ export const activations = {
     return exp.map((x) => x / sum);
   },
   crossEntropy: function (input: number[], expected: number[]) {
-    return -expected.reduce((a, c, i) => a + c * Math.log(input[i]), 0); // to avoid log(0)
+    return -expected.reduce((a, c, i) => a + c * Math.log(input[i] + 1e-15), 0);
   },
   dcrossEntropySoftmax: function (softmaxOutputs: number[], expected: number[]) {
     return softmaxOutputs.map((x, i) => x - expected[i]); // because of one-hot encoding, this is a simplification
