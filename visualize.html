@@ -89,8 +89,7 @@ function forwardPass(input) {
 function draw() {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (!model) return;
 
@@ -100,8 +99,15 @@ function draw() {
   const maxNeurons = Math.max(...layerSizes);
 
   const padX = 120, padY = 60;
+  const neuronSpacing = 100;
+  const layerSpacingMin = 250;
+  const minHeight = maxNeurons * neuronSpacing + padY * 2;
+  const minWidth = (numLayers - 1) * layerSpacingMin + padX * 2;
+  canvas.height = Math.max(700, minHeight);
+  canvas.width = Math.max(1000, minWidth);
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
   const usableW = W - padX * 2;
-  const usableH = H - padY * 2;
   const layerSpacing = usableW / (numLayers - 1);
 
   function neuronPos(layerIdx, neuronIdx) {
