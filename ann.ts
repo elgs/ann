@@ -24,7 +24,7 @@ class Layer {
   }
 }
 
-class Net {
+export class Net {
   inputSize: number;
   layers: Layer[];
   learningRate: number;
@@ -135,6 +135,7 @@ class Net {
   train(input: number[], expected: number[]) {
     const softmaxOutputs = this.forwardAll(input);
     const error = utils.activations.crossEntropy(softmaxOutputs, expected);
+    console.log('error:', error, 'input:', input, 'predicted:', softmaxOutputs, 'expected:', expected);
     this.backwardAll(softmaxOutputs, expected);
     this.updateWeightsAll(input);
     return error;
@@ -170,7 +171,7 @@ class Net {
       const predicted = this.predict(item.in);
       const expected = item.out;
       const error = predicted.map((p, i) => Math.abs(p - expected[i]));
-      console.log(`predicted: ${predicted.map((p) => p.toFixed(6)).join(', ')} expected: ${expected.map((e) => e.toFixed(6)).join(', ')} error: ${error.map((e) => e.toFixed(6)).join(', ')}`);
+      console.log(`error: ${error.map((e) => e.toFixed(6)).join(', ')} input: ${item.in.map((v) => v.toFixed(6)).join(', ')} predicted: ${predicted.map((p) => p.toFixed(6)).join(', ')} expected: ${expected.join(', ')}`);
       return {
         error,
         loss: utils.activations.crossEntropy(predicted, expected),
@@ -210,25 +211,30 @@ class Net {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-import train from './train.json' with { type: 'json' };
-import test from './test.json' with { type: 'json' };
-// console.log(train);
-// console.log(test);
+if (import.meta.main) {
+  const { default: train } = await import('./train.json', { with: { type: 'json' } });
+  const { default: test } = await import('./test.json', { with: { type: 'json' } });
 
-const net = new Net(2, [4, 3], 0.05);
-const netStr = net.toString();
-for (let i = 0; i < 100; ++i) {
-  const epoch = i;
-  const trainLoss = net.trainAll(train);
-  const metrics = net.predictAll(test);
-  console.log(
-    `epoch ${epoch}: trainLoss=${trainLoss.toFixed(6)} testLoss=${metrics.avgLoss.toFixed(6)} accuracy=${(metrics.accuracy * 100).toFixed(2)}% avgErrors=${metrics.avgErrors.map((e) => e.toFixed(6)).join(', ')}`,
-  );
+  const net = new Net(2, [4, 3], 0.05);
+  const netStr = net.toString();
+  for (let i = 0; i < 100; ++i) {
+    const epoch = i;
+    const trainLoss = net.trainAll(train);
+    const metrics = net.predictAll(test);
+    console.log(
+      `epoch ${epoch}: trainLoss=${trainLoss.toFixed(6)} testLoss=${metrics.avgLoss.toFixed(6)} accuracy=${(metrics.accuracy * 100).toFixed(2)}% avgErrors=${metrics.avgErrors.map((e) => e.toFixed(6)).join(', ')}`,
+    );
+  }
+  const trainedNetStr = net.toString();
+  Deno.writeTextFileSync('trained.json', trainedNetStr);
+
+  const net2 = Net.fromString(trainedNetStr);
+  const net2Str = net2.toString();
+
+  console.log('netStr:', netStr);
+  // console.log('net2Str:', net2Str);
+  console.log('trainedNetStr:', trainedNetStr);
+
+  console.log(net.predict([.9, .9]));
+  console.log(net2.predict([.9, .9]));
 }
-const trainedNetStr = net.toString();
-
-const net2 = Net.fromString(trainedNetStr);
-const net2Str = net2.toString();
-
-// net.predictAll(test);
-// net2.predictAll(test);
