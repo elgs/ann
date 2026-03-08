@@ -166,6 +166,7 @@ class Net {
       const predicted = this.predict(item.in);
       const expected = item.out;
       const error = predicted.map((p, i) => Math.abs(p - expected[i]));
+      console.log(`predicted: ${predicted.map((p) => p.toFixed(6)).join(', ')} expected: ${expected.map((e) => e.toFixed(6)).join(', ')} error: ${error.map((e) => e.toFixed(6)).join(', ')}`);
       return {
         error,
         loss: utils.activations.crossEntropy(predicted, expected),
@@ -212,7 +213,7 @@ import test from './test.json' with { type: 'json' };
 
 const net = new Net(2, [4, 3], 0.05);
 const netStr = net.toString();
-for (let i = 0; i < 200; ++i) {
+for (let i = 0; i < 100; ++i) {
   const epoch = i;
   const trainLoss = net.trainAll(train);
   const metrics = net.predictAll(test);
