@@ -1,6 +1,6 @@
 import * as utils from './utils.ts';
 
-let activation = 'relu';
+let activation = 'relu'; // or 'relu', default is sigmoid
 
 class Neuron {
   output: number = 0;
@@ -50,44 +50,55 @@ class Net {
     }
   }
 
-  // update output of each neuron in each layer
+  // update output of each neuron in each layer, return the output of the last layer which is softmax
   forwardAll(input: number[]) {
     let prevOutputs = input;
-    for (let i = 0; i < this.layers.length - 1; ++i) {
+    for (let i = 0; i < this.layers.length; ++i) {
       const layer = this.layers[i];
       this.forward(prevOutputs, layer);
       prevOutputs = layer.neurons.map((neuron) => neuron.output);
     }
+    // at this point, prevOutputs contains the output of the last layer
+    // update the output of the last layer with softmax
     const lastLayer = this.layers[this.layers.length - 1];
-    for (const neuron of lastLayer.neurons) {
-      neuron.output = utils.convFunctions.multiply(prevOutputs, neuron.weights);
-    }
+    const outputs = lastLayer.neurons.map((neuron) => neuron.output);
+    const softmaxOutputs = utils.activations.softmax(outputs);
+    return softmaxOutputs;
   }
 
   // update delta of each neuron in a layer
   backward(currLayer: Layer, nextLayer: Layer) {
     for (let i = 0; i < currLayer.neurons.length; ++i) { // for each neuron in the current layer
       const neuron = currLayer.neurons[i];
-      let delta = 0;
+      let dCurrentOutput = 0
       for (let j = 0; j < nextLayer.neurons.length; ++j) { // for each neuron in the next layer
         const nextLayerNeuron = nextLayer.neurons[j];
         // ***MOST IMPORTANT***
-        delta += nextLayerNeuron.weights[i] * nextLayerNeuron.delta; // sum of weights * delta of each neuron in the next layer (backpropagation)
+        dCurrentOutput += nextLayerNeuron.weights[i] * nextLayerNeuron.delta; // sum of weights * delta of each neuron in the next layer (backpropagation)
       }
       if (activation === 'sigmoid') {
-        neuron.delta = delta * utils.activations.dsigmoid(neuron.output);
+        neuron.delta = dCurrentOutput * utils.activations.dsigmoid(neuron.output);
       } else if (activation === 'relu') {
-        neuron.delta = delta * utils.activations.drelu(neuron.output);
+        neuron.delta = dCurrentOutput * utils.activations.drelu(neuron.output);
       }
     }
   }
 
   // update delta of each neuron in each layer
-  backwardAll(expected: number[]) {
+  backwardAll(softmaxOutputs: number[], expected: number[]) {
+    if (expected.length !== softmaxOutputs.length) {
+      throw new Error('Expected output size does not match the softmax output size, expected: ' + expected.length + ', got: ' + softmaxOutputs.length);
+    }
+
+    const dLastLayerOutputs = utils.activations.dcrossEntropySoftmax(softmaxOutputs, expected);
     const lastLayer = this.layers[this.layers.length - 1];
     for (let i = 0; i < lastLayer.neurons.length; ++i) {
       const neuron = lastLayer.neurons[i];
-      neuron.delta = (expected[i] - neuron.output);
+      if (activation === 'sigmoid') {
+        neuron.delta = dLastLayerOutputs[i] * utils.activations.dsigmoid(neuron.output);
+      } else if (activation === 'relu') {
+        neuron.delta = dLastLayerOutputs[i] * utils.activations.drelu(neuron.output);
+      }
     }
     for (let i = this.layers.length - 2; i >= 0; --i) {
       this.backward(this.layers[i], this.layers[i + 1]);
@@ -99,7 +110,7 @@ class Net {
     for (const neuron of currLayer.neurons) { // for each neuron in the current layer
       for (let i = 0; i < neuron.weights.length; ++i) { // for each weight of each neuron in the current layer
         // ***MOST IMPORTANT***
-        neuron.weights[i] += .01 * neuron.delta * prevOutputs[i]; // delta * output of each neuron in the previous layer (gradient descent)
+        neuron.weights[i] -= .01 * neuron.delta * prevOutputs[i]; // dweight = learningRate * delta * output of the previous layer
       }
     }
   }
@@ -114,8 +125,10 @@ class Net {
   }
 
   train(input: number[], expected: number[]) {
-    this.forwardAll(input);
-    this.backwardAll(expected);
+    const softmaxOutputs = this.forwardAll(input);
+    const error = utils.activations.crossEntropy(softmaxOutputs, expected);
+    console.log('error:', error, input, softmaxOutputs, expected);
+    this.backwardAll(softmaxOutputs, expected);
     this.updateWeightsAll(input);
   }
 
@@ -146,7 +159,10 @@ class Net {
       }
       return acc;
     }, new Array(errors[0].length).fill(0));
-    console.log(errorsAvg.map((e) => e / errors.length));
+    // console.log('***********************************');
+    // console.log('errors:', errors);
+    // console.log(errorsAvg.map((e) => e / errors.length));
+    // console.log('***********************************');
   }
 
   toString() {
@@ -164,15 +180,15 @@ class Net {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-import train from './train.json' assert { type: 'json' };
-import test from './test.json' assert { type: 'json' };
+import train from './train.json' with { type: 'json' };
+import test from './test.json' with { type: 'json' };
 // console.log(train);
 // console.log(test);
 
-const net = new Net(4, 1);
+const net = new Net(2, 3);
 const netStr = net.toString();
 console.log(netStr);
-for (let i = 0; i < 10000; ++i) {
+for (let i = 0; i < 100; ++i) {
   const epoch = i;
   console.log(`epoch: ${epoch}`);
   net.trainAll(train);

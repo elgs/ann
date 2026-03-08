@@ -5,8 +5,32 @@ export const activations = {
     return sig * (1 - sig);
   },
   relu: (input: number) => Math.max(0, input),
-  drelu: (input: number) => input > 0 ? 1 : 0,
+  drelu: (output: number) => output > 0 ? 1 : 0,
+  softmax: function (input: number[]) {
+    const max = Math.max(...input);
+    const exp = input.map((x) => Math.exp(x - max));
+    const sum = exp.reduce((a, c) => a + c, 0);
+    return exp.map((x) => x / sum);
+  },
+  crossEntropy: function (input: number[], expected: number[]) {
+    return -expected.reduce((a, c, i) => a + c * Math.log(input[i]), 0); // to avoid log(0)
+  },
+  dcrossEntropySoftmax: function (softmaxOutputs: number[], expected: number[]) {
+    return softmaxOutputs.map((x, i) => x - expected[i]); // because of one-hot encoding, this is a simplification
+  }
 };
+
+export const shuffle = (array: any[]) => {
+  let currentIndex = array.length;
+  // While there remain elements to shuffle...
+  while (currentIndex != 0) {
+    // Pick a remaining element...
+    let randomIndex = Math.floor(Math.random() * currentIndex);
+    --currentIndex;
+    // And swap it with the current element.
+    [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+  }
+}
 
 export const convFunctions = {
   multiply: (a0: number[], a1: number[]) => a0.reduce((a, c, i) => a + c * a1[i], 0),
@@ -150,14 +174,14 @@ const printOutput = (output: number[], width: number, height: number) => {
   console.log();
 };
 
-const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-const kernel = [1, 2, 3, 4];
+// const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+// const kernel = [1, 2, 3, 4];
 
-let output = convFunctions.conv2d(data, 4, 4, kernel, 2, 2, 1, 1, 1, 1);
-printOutput(output.output, output.width, output.height);
+// let output = convFunctions.conv2d(data, 4, 4, kernel, 2, 2, 1, 1, 1, 1);
+// printOutput(output.output, output.width, output.height);
 
-output = convFunctions.maxPool(data, 4, 4, 2, 2);
-printOutput(output.output, output.width, output.height);
+// output = convFunctions.maxPool(data, 4, 4, 2, 2);
+// printOutput(output.output, output.width, output.height);
 
-output = convFunctions.avgPool(data, 4, 4, 2, 2);
-printOutput(output.output, output.width, output.height);
+// output = convFunctions.avgPool(data, 4, 4, 2, 2);
+// printOutput(output.output, output.width, output.height);
