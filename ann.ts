@@ -215,7 +215,7 @@ if (import.meta.main) {
   const { default: train } = await import('./train.json', { with: { type: 'json' } });
   const { default: test } = await import('./test.json', { with: { type: 'json' } });
 
-  const net = new Net(2, [4, 3], 0.05);
+  const net = new Net(2, [3, 4, 3], 0.05);
   const netStr = net.toString();
   for (let i = 0; i < 100; ++i) {
     const epoch = i;
