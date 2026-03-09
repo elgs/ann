@@ -46,7 +46,7 @@
   #prediction { margin-bottom: 14px; font-size: 15px; padding: 10px 20px; background: #16213e; border-radius: 6px; min-height: 36px; max-width: 1200px; width: 100%; }
 
   /* ---------- canvas ---------- */
-  canvas { border-radius: 8px; background: #16213e; cursor: crosshair; }
+  canvas { border-radius: 8px; background: #16213e; cursor: crosshair; width: 100%; max-width: 1200px; }
   #tooltip { position: absolute; pointer-events: none; background: rgba(0,0,0,0.85); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: none; white-space: nowrap; border: 1px solid #555; }
   .legend { display: flex; gap: 20px; margin-top: 10px; font-size: 13px; }
   .legend-item { display: flex; align-items: center; gap: 5px; }
@@ -65,7 +65,7 @@
   <div class="panel">
     <h2>Network Architecture</h2>
     <label>Hidden layers (comma-separated sizes):
-      <input type="text" id="cfgLayers" value="8, 8, 8, 6, 5" placeholder="e.g. 8, 8, 3">
+      <input type="text" id="cfgLayers" value="3, 4" placeholder="e.g. 3, 4">
     </label>
     <label>Output classes (comma-separated labels):
       <input type="text" id="cfgLabels" value="Male, Female, Child">
@@ -624,20 +624,8 @@ cvs.addEventListener('mousemove', e => {
 
 cvs.addEventListener('mouseleave', () => { hoveredSegment = null; tip.style.display = 'none'; draw(); });
 
-// =====================================================================
-//  Auto-load existing trained.json if available (for backward compat)
-// =====================================================================
-fetch('trained.json')
-  .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
-  .then(data => {
-    model = Net.fromJSON(data);
-    const outSize = model.layers[model.layers.length - 1].neurons.length;
-    if (LABELS.length !== outSize) LABELS = Array.from({ length: outSize }, (_, i) => `Class ${i}`);
-    draw();
-    runPrediction();
-    clog('Loaded existing trained.json model.', 'log-info');
-  })
-  .catch(() => { clog('No pre-trained model loaded. Configure and train a network above.', 'log-info'); });
+clog('Configure the network architecture above and click Train Network to start.', 'log-info');
+startTraining();
 </script>
 </body>
 </html>
