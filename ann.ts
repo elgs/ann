@@ -4,7 +4,13 @@
 
 import * as utils from './utils.ts';
 
+export { utils };
+export const { activations, shuffle } = utils;
+
 let activation = 'sigmoid'; // or 'relu'
+
+export function setActivation(act: string) { activation = act; }
+export function getActivation() { return activation; }
 
 class Neuron {
   output: number = 0;
@@ -196,6 +202,26 @@ export class Net {
     };
   }
 
+  evaluate(data: { in: number[]; out: number[] }[]) {
+    let totalLoss = 0, correct = 0;
+    for (const d of data) {
+      const pred = this.predict(d.in);
+      totalLoss += utils.activations.crossEntropy(pred, d.out);
+      if (this.argmax(pred) === this.argmax(d.out)) correct++;
+    }
+    return { avgLoss: totalLoss / data.length, accuracy: correct / data.length };
+  }
+
+  toJSON() {
+    return JSON.parse(JSON.stringify({ inputSize: this.inputSize, layers: this.layers, learningRate: this.learningRate }));
+  }
+
+  static fromJSON(obj: any) {
+    const net = new Net(obj.inputSize, obj.layers.map((layer: Layer) => layer.neurons.length), obj.learningRate ?? 0.01);
+    net.layers = obj.layers;
+    return net;
+  }
+
   toString() {
     return JSON.stringify(this, null, 2);
   }
@@ -215,7 +241,7 @@ if (import.meta.main) {
   const { default: train } = await import('./train.json', { with: { type: 'json' } });
   const { default: test } = await import('./test.json', { with: { type: 'json' } });
 
-  const net = new Net(2, [8, 8, 8, 6, 5, 3], 0.05);
+  const net = new Net(2, [4, 3], 0.05);
   const netStr = net.toString();
   for (let i = 0; i < 100; ++i) {
     const epoch = i;
