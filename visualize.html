@@ -218,7 +218,7 @@ async function startTraining() {
 
   const t0 = performance.now();
 
-  for (let epoch = 0; epoch < epochs; epoch++) {
+  for (let epoch = 0; epoch < epochs; ++epoch) {
     if (trainingAborted) { clog('\nTraining stopped by user.', 'log-warn'); break; }
 
     const trainLoss = model.trainAll(trainData);
@@ -298,23 +298,17 @@ function normalizeRaw(raw) {
 }
 
 function forwardPassVis(input) {
+  const output = model.predict(input);
+  // Read activations from the model's neurons (set during forwardAll)
   const acts = [input];
-  let prev = input;
-  for (let li = 0; li < model.layers.length; li++) {
+  for (let li = 0; li < model.layers.length; ++li) {
     const layer = model.layers[li];
-    const isOutput = li === model.layers.length - 1;
-    const curr = [];
-    for (const neuron of layer.neurons) {
-      let sum = neuron.bias;
-      for (let j = 0; j < prev.length; j++) sum += prev[j] * neuron.weights[j];
-      if (isOutput) curr.push(sum);
-      else if (getActivation() === 'sigmoid') curr.push(activations.sigmoid(sum));
-      else curr.push(activations.relu(sum));
+    if (li === model.layers.length - 1) {
+      acts.push(output); // softmax output
+    } else {
+      acts.push(layer.neurons.map(n => n.output));
     }
-    acts.push(curr);
-    prev = curr;
   }
-  acts[acts.length - 1] = activations.softmax(acts[acts.length - 1]);
   return acts;
 }
 
@@ -355,11 +349,11 @@ function draw() {
 
   // Connections
   weightSegments = [];
-  for (let li = 0; li < layers.length; li++) {
-    for (let ni = 0; ni < layers[li].neurons.length; ni++) {
+  for (let li = 0; li < layers.length; ++li) {
+    for (let ni = 0; ni < layers[li].neurons.length; ++ni) {
       const neuron = layers[li].neurons[ni];
       const to = neuronPos(li + 1, ni);
-      for (let wi = 0; wi < neuron.weights.length; wi++) {
+      for (let wi = 0; wi < neuron.weights.length; ++wi) {
         const from = neuronPos(li, wi);
         const w = neuron.weights[wi];
         const absW = Math.abs(w);
@@ -382,11 +376,11 @@ function draw() {
   // Neurons
   neuronPositions = [];
   const layerLabels = ['Input', ...layers.map((_, i) => i < layers.length - 1 ? `Hidden ${i + 1}` : 'Output')];
-  for (let li = 0; li < numLayers; li++) {
+  for (let li = 0; li < numLayers; ++li) {
     const lp = neuronPos(li, 0);
     ctx.fillStyle = '#888'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
     ctx.fillText(layerLabels[li], lp.x, padY - 25);
-    for (let ni = 0; ni < layerSizes[li]; ni++) {
+    for (let ni = 0; ni < layerSizes[li]; ++ni) {
       const pos = neuronPos(li, ni);
       const r = 30;
       neuronPositions.push({ x: pos.x, y: pos.y, radius: r });
