@@ -3,67 +3,469 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
-<title>Neural Network Visualizer</title>
+<title>Neural Network — Train & Visualize</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
-  h1 { margin-bottom: 10px; color: #e94560; }
-  #controls { margin-bottom: 15px; display: flex; gap: 15px; align-items: center; }
-  #controls label { font-size: 14px; }
-  #controls input { width: 80px; padding: 4px 8px; border: 1px solid #444; border-radius: 4px; background: #16213e; color: #e0e0e0; }
-  #controls button { padding: 6px 16px; border: none; border-radius: 4px; background: #e94560; color: white; cursor: pointer; font-size: 14px; }
-  #controls button:hover { background: #c73650; }
+  h1 { margin-bottom: 14px; color: #e94560; }
+
+  /* ---------- panels ---------- */
+  .panels { display: flex; gap: 20px; width: 100%; max-width: 1200px; margin-bottom: 18px; flex-wrap: wrap; }
+  .panel { background: #16213e; border-radius: 8px; padding: 16px; flex: 1; min-width: 280px; }
+  .panel h2 { font-size: 15px; color: #e94560; margin-bottom: 10px; }
+  .panel label { font-size: 13px; display: block; margin-bottom: 6px; }
+  .panel input, .panel select { width: 100%; padding: 5px 8px; border: 1px solid #444; border-radius: 4px; background: #0f3460; color: #e0e0e0; font-size: 13px; margin-bottom: 8px; }
+  .panel input[type="number"] { width: 100%; }
+
+  /* ---------- buttons ---------- */
+  .btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600; }
+  .btn-primary { background: #e94560; color: white; }
+  .btn-primary:hover { background: #c73650; }
+  .btn-primary:disabled { background: #555; cursor: not-allowed; }
+  .btn-secondary { background: #0f3460; color: #e0e0e0; border: 1px solid #444; }
+  .btn-secondary:hover { background: #1a4a7a; }
+  .btn-row { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+
+  /* ---------- console ---------- */
+  #console {
+    width: 100%; max-width: 1200px; height: 260px; overflow-y: auto;
+    background: #0d1117; border: 1px solid #333; border-radius: 6px;
+    padding: 10px 14px; font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 12px; line-height: 1.5; color: #c9d1d9; margin-bottom: 18px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  #console .log-info { color: #58a6ff; }
+  #console .log-success { color: #3fb950; }
+  #console .log-warn { color: #d29922; }
+  #console .log-error { color: #f85149; }
+
+  /* ---------- prediction row ---------- */
+  #predict-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  #predict-controls label { font-size: 13px; }
+  #predict-controls input { width: 80px; padding: 4px 8px; border: 1px solid #444; border-radius: 4px; background: #16213e; color: #e0e0e0; }
+  #prediction { margin-bottom: 14px; font-size: 15px; padding: 10px 20px; background: #16213e; border-radius: 6px; min-height: 36px; max-width: 1200px; width: 100%; }
+
+  /* ---------- canvas ---------- */
   canvas { border-radius: 8px; background: #16213e; cursor: crosshair; }
-  #info { margin-top: 15px; font-size: 13px; color: #888; max-width: 900px; text-align: center; }
-  #prediction { margin-top: 10px; font-size: 16px; padding: 10px 20px; background: #16213e; border-radius: 6px; min-height: 40px; }
   #tooltip { position: absolute; pointer-events: none; background: rgba(0,0,0,0.85); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: none; white-space: nowrap; border: 1px solid #555; }
   .legend { display: flex; gap: 20px; margin-top: 10px; font-size: 13px; }
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-swatch { width: 30px; height: 4px; border-radius: 2px; }
+  #info { margin-top: 12px; font-size: 13px; color: #888; max-width: 1200px; text-align: center; }
+  .progress-bar-container { width:100%; background:#0f3460; border-radius:4px; height:8px; margin-top:6px; overflow:hidden; }
+  .progress-bar { height:100%; background:#e94560; width:0%; transition: width 0.2s; border-radius:4px; }
 </style>
 </head>
 <body>
-<h1>Neural Network Visualizer</h1>
-<div id="controls">
-  <label>Height (ft): <input type="number" id="inputHeight" value="5.5" step="0.1" min="3" max="7" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('inputWeight').focus();}"></label>
-  <label>Weight (lbs): <input type="number" id="inputWeight" value="130" step="5" min="40" max="200" onkeydown="if(event.key==='Enter'){event.preventDefault();runPrediction();}"></label>
-  <button onclick="runPrediction()">Predict</button>
+<h1>Neural Network — Train & Visualize in Browser</h1>
+
+<!-- ==================== Configuration Panels ==================== -->
+<div class="panels">
+  <!-- Network architecture -->
+  <div class="panel">
+    <h2>Network Architecture</h2>
+    <label>Hidden layers (comma-separated sizes):
+      <input type="text" id="cfgLayers" value="8, 8, 8, 6, 5" placeholder="e.g. 8, 8, 3">
+    </label>
+    <label>Output classes (comma-separated labels):
+      <input type="text" id="cfgLabels" value="Male, Female, Child">
+    </label>
+    <label>Activation:
+      <select id="cfgActivation">
+        <option value="sigmoid" selected>Sigmoid</option>
+        <option value="relu">ReLU</option>
+      </select>
+    </label>
+  </div>
+
+  <!-- Training parameters -->
+  <div class="panel">
+    <h2>Training Parameters</h2>
+    <label>Learning rate:
+      <input type="number" id="cfgLR" value="0.05" step="0.005" min="0.001" max="1">
+    </label>
+    <label>Epochs:
+      <input type="number" id="cfgEpochs" value="100" min="1" max="10000">
+    </label>
+    <label>Training samples per class:
+      <input type="number" id="cfgTrainN" value="1000" min="10" max="50000">
+    </label>
+    <label>Test samples per class:
+      <input type="number" id="cfgTestN" value="200" min="10" max="10000">
+    </label>
+  </div>
+
+  <!-- Actions -->
+  <div class="panel">
+    <h2>Actions</h2>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnTrain" onclick="startTraining()">Train Network</button>
+      <button class="btn btn-secondary" id="btnStop" onclick="stopTraining()" disabled>Stop</button>
+      <button class="btn btn-secondary" onclick="clearConsole()">Clear Console</button>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="exportModel()">Export Model JSON</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Import Model JSON</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importModel(event)">
+    </div>
+    <div class="progress-bar-container" id="progressContainer" style="display:none;">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div id="statusLine" style="font-size:12px; margin-top:8px; color:#888;"></div>
+  </div>
 </div>
+
+<!-- ==================== Console ==================== -->
+<div id="console"></div>
+
+<!-- ==================== Predict ==================== -->
+<div id="predict-controls">
+  <label>Height (ft): <input type="number" id="inputHeight" value="5.5" step="0.1" min="3" max="7"></label>
+  <label>Weight (lbs): <input type="number" id="inputWeight" value="130" step="5" min="40" max="200"></label>
+  <button class="btn btn-primary" onclick="runPrediction()">Predict</button>
+</div>
+<div id="prediction"></div>
+
+<!-- ==================== Canvas ==================== -->
 <canvas id="canvas" width="1000" height="700"></canvas>
 <div id="tooltip"></div>
-<div id="prediction"></div>
 <div class="legend">
   <div class="legend-item"><div class="legend-swatch" style="background: #4fc3f7;"></div> Positive weight</div>
   <div class="legend-item"><div class="legend-swatch" style="background: #ef5350;"></div> Negative weight</div>
   <div class="legend-item">Line thickness = |weight|</div>
 </div>
-<div id="info">Load trained.json to visualize the network architecture, weights, and biases. Enter height/weight values and click Predict to see activations flow through the network. <a href="https://github.com/elgs/ann" style="color: #4fc3f7;">GitHub</a></div>
+<div id="info">Define the network architecture above, then click <strong>Train Network</strong>. Training runs entirely in your browser — no server required. <a href="https://github.com/elgs/ann" style="color: #4fc3f7;">GitHub</a></div>
 
 <script>
-const LABELS = ['Male', 'Female', 'Child'];
+// =====================================================================
+//  Utility functions (ported from utils.ts)
+// =====================================================================
+const activations = {
+  sigmoid: x => 1 / (1 + Math.exp(-x)),
+  dsigmoid: o => o * (1 - o),
+  relu: x => Math.max(0, x),
+  drelu: o => o > 0 ? 1 : 0,
+  softmax(input) {
+    const max = Math.max(...input);
+    const exp = input.map(x => Math.exp(x - max));
+    const sum = exp.reduce((a, c) => a + c, 0);
+    return exp.map(x => x / sum);
+  },
+  crossEntropy(input, expected) {
+    return -expected.reduce((a, c, i) => a + c * Math.log(input[i] + 1e-15), 0);
+  },
+  dcrossEntropySoftmax(softmaxOutputs, expected) {
+    return softmaxOutputs.map((x, i) => x - expected[i]);
+  }
+};
+
+function dot(a, b) { return a.reduce((s, v, i) => s + v * b[i], 0); }
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+// =====================================================================
+//  Neural Network (ported from ann.ts)
+// =====================================================================
+class Neuron { constructor() { this.output = 0; this.delta = 0; this.weights = []; this.bias = 0; } }
+
+class Layer {
+  constructor(size) {
+    this.neurons = [];
+    for (let i = 0; i < size; i++) this.neurons.push(new Neuron());
+  }
+}
+
+class Net {
+  constructor(inputSize, layerSizes, learningRate = 0.01) {
+    this.inputSize = inputSize;
+    this.layers = [];
+    this.learningRate = learningRate;
+    for (let i = 0; i < layerSizes.length; i++) {
+      const layer = new Layer(layerSizes[i]);
+      const prevSize = i > 0 ? layerSizes[i - 1] : inputSize;
+      for (const n of layer.neurons) {
+        n.weights = Array.from({ length: prevSize }, () => Math.random() * 2 - 1);
+        n.bias = Math.random() * 2 - 1;
+      }
+      this.layers.push(layer);
+    }
+  }
+
+  forward(prevOutputs, layer, isOutput) {
+    for (const n of layer.neurons) {
+      const ws = dot(prevOutputs, n.weights) + n.bias;
+      if (isOutput) { n.output = ws; }
+      else if (currentActivation === 'sigmoid') { n.output = activations.sigmoid(ws); }
+      else { n.output = activations.relu(ws); }
+    }
+  }
+
+  forwardAll(input) {
+    let prev = input;
+    for (let i = 0; i < this.layers.length; i++) {
+      this.forward(prev, this.layers[i], i === this.layers.length - 1);
+      prev = this.layers[i].neurons.map(n => n.output);
+    }
+    return activations.softmax(prev);
+  }
+
+  backward(curr, next) {
+    for (let i = 0; i < curr.neurons.length; i++) {
+      const n = curr.neurons[i];
+      let d = 0;
+      for (const nn of next.neurons) d += nn.weights[i] * nn.delta;
+      n.delta = currentActivation === 'sigmoid'
+        ? d * activations.dsigmoid(n.output)
+        : d * activations.drelu(n.output);
+    }
+  }
+
+  backwardAll(sm, expected) {
+    const dLast = activations.dcrossEntropySoftmax(sm, expected);
+    const last = this.layers[this.layers.length - 1];
+    last.neurons.forEach((n, i) => n.delta = dLast[i]);
+    for (let i = this.layers.length - 2; i >= 0; i--) this.backward(this.layers[i], this.layers[i + 1]);
+  }
+
+  updateWeights(layer, prevOutputs) {
+    for (const n of layer.neurons) {
+      for (let i = 0; i < n.weights.length; i++) n.weights[i] -= this.learningRate * n.delta * prevOutputs[i];
+      n.bias -= this.learningRate * n.delta;
+    }
+  }
+
+  updateWeightsAll(input) {
+    let prev = input;
+    for (const l of this.layers) { this.updateWeights(l, prev); prev = l.neurons.map(n => n.output); }
+  }
+
+  trainSample(input, expected) {
+    const sm = this.forwardAll(input);
+    const err = activations.crossEntropy(sm, expected);
+    this.backwardAll(sm, expected);
+    this.updateWeightsAll(input);
+    return err;
+  }
+
+  trainEpoch(data) {
+    shuffle(data);
+    let total = 0;
+    for (const d of data) total += this.trainSample(d.in, d.out);
+    return total / data.length;
+  }
+
+  predict(input) { return this.forwardAll(input); }
+
+  argmax(v) { let m = 0; for (let i = 1; i < v.length; i++) if (v[i] > v[m]) m = i; return m; }
+
+  evaluate(data) {
+    let totalLoss = 0, correct = 0;
+    for (const d of data) {
+      const pred = this.predict(d.in);
+      totalLoss += activations.crossEntropy(pred, d.out);
+      if (this.argmax(pred) === this.argmax(d.out)) correct++;
+    }
+    return { avgLoss: totalLoss / data.length, accuracy: correct / data.length };
+  }
+
+  toJSON() { return JSON.parse(JSON.stringify({ inputSize: this.inputSize, layers: this.layers, learningRate: this.learningRate })); }
+
+  static fromJSON(obj) {
+    const net = new Net(obj.inputSize, obj.layers.map(l => l.neurons.length), obj.learningRate || 0.01);
+    net.layers = obj.layers;
+    return net;
+  }
+}
+
+// =====================================================================
+//  Data generation  (ported from gen.ts)
+// =====================================================================
 const IN_BOUNDS = [[3.5, 6.5], [50, 170]];
 const INPUT_LABELS = ['Height', 'Weight'];
 
-let model = null;
-let activations = null; // per-layer activations after a forward pass
-let weightSegments = []; // stored for hover detection
-let hoveredSegment = null;
-let neuronPositions = []; // stored for hover suppression on circles
+// Per-class generation rules: [meanHeight, heightRange, meanWeight, weightRange]
+const CLASS_PROFILES = [
+  [6.0, 1.0, 160, 20],   // Male
+  [5.0, 1.0, 120, 20],   // Female
+  [4.0, 1.0, 60,  20],   // Child
+];
 
-function normalize(raw) {
+function generateData(samplesPerClass, numClasses) {
+  const data = [];
+  for (let c = 0; c < numClasses; c++) {
+    const [mH, rH, mW, rW] = CLASS_PROFILES[c] || [5, 1, 120, 20]; // fallback
+    const oneHot = Array.from({ length: numClasses }, (_, i) => i === c ? 1 : 0);
+    for (let i = 0; i < samplesPerClass; i++) {
+      const h = mH + Math.random() * rH - rH / 2;
+      const w = mW + Math.random() * rW - rW / 2;
+      const hn = (h - IN_BOUNDS[0][0]) / (IN_BOUNDS[0][1] - IN_BOUNDS[0][0]);
+      const wn = (w - IN_BOUNDS[1][0]) / (IN_BOUNDS[1][1] - IN_BOUNDS[1][0]);
+      data.push({ in: [hn, wn], out: oneHot });
+    }
+  }
+  shuffle(data);
+  return data;
+}
+
+// =====================================================================
+//  Console output
+// =====================================================================
+const consoleEl = document.getElementById('console');
+function clog(msg, cls = '') {
+  const span = document.createElement('span');
+  if (cls) span.className = cls;
+  span.textContent = msg + '\n';
+  consoleEl.appendChild(span);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+function clearConsole() { consoleEl.innerHTML = ''; }
+
+// =====================================================================
+//  Global state
+// =====================================================================
+let model = null;
+let activationsData = null;  // per-layer activations after a forward pass
+let weightSegments = [];
+let hoveredSegment = null;
+let neuronPositions = [];
+let LABELS = ['Male', 'Female', 'Child'];
+let currentActivation = 'sigmoid';
+let trainingAborted = false;
+
+// =====================================================================
+//  Training
+// =====================================================================
+async function startTraining() {
+  const btnTrain = document.getElementById('btnTrain');
+  const btnStop = document.getElementById('btnStop');
+  btnTrain.disabled = true;
+  btnStop.disabled = false;
+  trainingAborted = false;
+
+  // Parse config
+  const hiddenText = document.getElementById('cfgLayers').value.trim();
+  const hiddenSizes = hiddenText.split(',').map(s => parseInt(s.trim(), 10)).filter(n => n > 0);
+  LABELS = document.getElementById('cfgLabels').value.split(',').map(s => s.trim()).filter(Boolean);
+  const numClasses = LABELS.length;
+  const outputSizes = [...hiddenSizes, numClasses];
+  currentActivation = document.getElementById('cfgActivation').value;
+  const lr = parseFloat(document.getElementById('cfgLR').value) || 0.05;
+  const epochs = parseInt(document.getElementById('cfgEpochs').value, 10) || 100;
+  const trainN = parseInt(document.getElementById('cfgTrainN').value, 10) || 1000;
+  const testN = parseInt(document.getElementById('cfgTestN').value, 10) || 200;
+
+  clog(`== Configuration ==`, 'log-info');
+  clog(`  Input: 2 (Height, Weight)`);
+  clog(`  Hidden layers: [${hiddenSizes.join(', ')}]`);
+  clog(`  Output: ${numClasses} (${LABELS.join(', ')})`);
+  clog(`  Activation: ${currentActivation}  |  LR: ${lr}  |  Epochs: ${epochs}`);
+  clog(`  Train samples/class: ${trainN}  |  Test samples/class: ${testN}`);
+  clog('');
+
+  // Generate data
+  clog('Generating training data...', 'log-info');
+  const trainData = generateData(trainN, numClasses);
+  const testData = generateData(testN, numClasses);
+  clog(`  ${trainData.length} training samples, ${testData.length} test samples generated.`, 'log-success');
+
+  // Create network
+  model = new Net(2, outputSizes, lr);
+  draw();
+  clog('Network created. Starting training...\n', 'log-info');
+
+  const progressContainer = document.getElementById('progressContainer');
+  const progressBar = document.getElementById('progressBar');
+  const statusLine = document.getElementById('statusLine');
+  progressContainer.style.display = 'block';
+  progressBar.style.width = '0%';
+
+  const t0 = performance.now();
+
+  for (let epoch = 0; epoch < epochs; epoch++) {
+    if (trainingAborted) { clog('\nTraining stopped by user.', 'log-warn'); break; }
+
+    const trainLoss = model.trainEpoch(trainData);
+    const metrics = model.evaluate(testData);
+
+    const pct = ((epoch + 1) / epochs * 100).toFixed(0);
+    progressBar.style.width = pct + '%';
+    statusLine.textContent = `Epoch ${epoch + 1}/${epochs} (${pct}%)`;
+
+    const line = `epoch ${epoch}: trainLoss=${trainLoss.toFixed(6)} testLoss=${metrics.avgLoss.toFixed(6)} accuracy=${(metrics.accuracy * 100).toFixed(2)}%`;
+    clog(line, metrics.accuracy > 0.95 ? 'log-success' : '');
+
+    // Yield to the browser every epoch so the UI stays responsive
+    if (epoch % 1 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+  clog(`\nTraining finished in ${elapsed}s.`, 'log-success');
+
+  // Final evaluation
+  const final = model.evaluate(testData);
+  clog(`Final — testLoss: ${final.avgLoss.toFixed(6)}  accuracy: ${(final.accuracy * 100).toFixed(2)}%\n`, 'log-success');
+
+  activationsData = null;
+  draw();
+  runPrediction();
+
+  btnTrain.disabled = false;
+  btnStop.disabled = true;
+  progressContainer.style.display = 'none';
+  statusLine.textContent = '';
+}
+
+function stopTraining() { trainingAborted = true; }
+
+// =====================================================================
+//  Export / Import model
+// =====================================================================
+function exportModel() {
+  if (!model) { clog('No model to export.', 'log-warn'); return; }
+  const blob = new Blob([JSON.stringify(model.toJSON(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'trained.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  clog('Model exported as trained.json', 'log-info');
+}
+
+function importModel(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const obj = JSON.parse(reader.result);
+      model = Net.fromJSON(obj);
+      // infer labels from output size
+      const outSize = model.layers[model.layers.length - 1].neurons.length;
+      if (LABELS.length !== outSize) LABELS = Array.from({ length: outSize }, (_, i) => `Class ${i}`);
+      currentActivation = 'sigmoid'; // default; user can change
+      activationsData = null;
+      draw();
+      runPrediction();
+      clog(`Model imported (${model.layers.length} layers, output size ${outSize}).`, 'log-success');
+    } catch (err) { clog('Import error: ' + err.message, 'log-error'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// =====================================================================
+//  Prediction & visualisation  (kept from original)
+// =====================================================================
+function normalizeRaw(raw) {
   return raw.map((v, i) => (v - IN_BOUNDS[i][0]) / (IN_BOUNDS[i][1] - IN_BOUNDS[i][0]));
 }
 
-function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
-
-function softmax(arr) {
-  const max = Math.max(...arr);
-  const exps = arr.map(x => Math.exp(x - max));
-  const sum = exps.reduce((a, b) => a + b, 0);
-  return exps.map(x => x / sum);
-}
-
-function forwardPass(input) {
+function forwardPassVis(input) {
   const acts = [input];
   let prev = input;
   for (let li = 0; li < model.layers.length; li++) {
@@ -72,17 +474,15 @@ function forwardPass(input) {
     const curr = [];
     for (const neuron of layer.neurons) {
       let sum = neuron.bias;
-      for (let j = 0; j < prev.length; j++) {
-        sum += prev[j] * neuron.weights[j];
-      }
-      curr.push(isOutput ? sum : sigmoid(sum));
+      for (let j = 0; j < prev.length; j++) sum += prev[j] * neuron.weights[j];
+      if (isOutput) curr.push(sum);
+      else if (currentActivation === 'sigmoid') curr.push(activations.sigmoid(sum));
+      else curr.push(activations.relu(sum));
     }
     acts.push(curr);
     prev = curr;
   }
-  // apply softmax to last layer
-  const sm = softmax(acts[acts.length - 1]);
-  acts[acts.length - 1] = sm;
+  acts[acts.length - 1] = activations.softmax(acts[acts.length - 1]);
   return acts;
 }
 
@@ -90,11 +490,10 @@ function draw() {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   if (!model) return;
 
   const layers = model.layers;
-  const numLayers = layers.length + 1; // +1 for input layer
+  const numLayers = layers.length + 1;
   const layerSizes = [model.inputSize, ...layers.map(l => l.neurons.length)];
   const maxNeurons = Math.max(...layerSizes);
 
@@ -108,137 +507,74 @@ function draw() {
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
   const usableW = W - padX * 2;
-  const layerSpacing = usableW / (numLayers - 1);
+  const layerSpacing = numLayers > 1 ? usableW / (numLayers - 1) : 0;
 
-  function neuronPos(layerIdx, neuronIdx) {
-    const size = layerSizes[layerIdx];
+  function neuronPos(li, ni) {
+    const size = layerSizes[li];
     const totalH = size * 100;
     const startY = (H - totalH) / 2 + 50;
-    return {
-      x: padX + layerIdx * layerSpacing,
-      y: startY + neuronIdx * 100,
-    };
+    return { x: padX + li * layerSpacing, y: startY + ni * 100 };
   }
 
-  // Draw connections (weights)
+  // Connections
   weightSegments = [];
   for (let li = 0; li < layers.length; li++) {
-    const layer = layers[li];
-    for (let ni = 0; ni < layer.neurons.length; ni++) {
-      const neuron = layer.neurons[ni];
+    for (let ni = 0; ni < layers[li].neurons.length; ni++) {
+      const neuron = layers[li].neurons[ni];
       const to = neuronPos(li + 1, ni);
       for (let wi = 0; wi < neuron.weights.length; wi++) {
         const from = neuronPos(li, wi);
         const w = neuron.weights[wi];
         const absW = Math.abs(w);
-        const maxLineWidth = 5;
-        const lineWidth = Math.min(maxLineWidth, absW * 0.3 + 0.5);
+        const lw = Math.min(5, absW * 0.3 + 0.5);
         const alpha = Math.min(0.9, absW * 0.05 + 0.15);
-        const isHovered = hoveredSegment && hoveredSegment.li === li && hoveredSegment.ni === ni && hoveredSegment.wi === wi;
-
+        const isH = hoveredSegment && hoveredSegment.li === li && hoveredSegment.ni === ni && hoveredSegment.wi === wi;
         weightSegments.push({ x1: from.x, y1: from.y, x2: to.x, y2: to.y, w, li, ni, wi });
-
-        ctx.beginPath();
-        ctx.moveTo(from.x, from.y);
-        ctx.lineTo(to.x, to.y);
-        if (isHovered) {
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = lineWidth + 3;
-        } else {
-          ctx.strokeStyle = w >= 0
-            ? `rgba(79, 195, 247, ${hoveredSegment ? alpha * 0.4 : alpha})`
-            : `rgba(239, 83, 80, ${hoveredSegment ? alpha * 0.4 : alpha})`;
-          ctx.lineWidth = lineWidth;
-        }
+        ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
+        if (isH) { ctx.strokeStyle = '#fff'; ctx.lineWidth = lw + 3; }
+        else { ctx.strokeStyle = w >= 0 ? `rgba(79,195,247,${hoveredSegment ? alpha * 0.4 : alpha})` : `rgba(239,83,80,${hoveredSegment ? alpha * 0.4 : alpha})`; ctx.lineWidth = lw; }
         ctx.stroke();
       }
     }
   }
-  // Redraw hovered segment on top so it's fully visible
   if (hoveredSegment) {
     const seg = weightSegments.find(s => s.li === hoveredSegment.li && s.ni === hoveredSegment.ni && s.wi === hoveredSegment.wi);
-    if (seg) {
-      const absW = Math.abs(seg.w);
-      const lineWidth = Math.min(5, absW * 0.3 + 0.5);
-      ctx.beginPath();
-      ctx.moveTo(seg.x1, seg.y1);
-      ctx.lineTo(seg.x2, seg.y2);
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = lineWidth + 3;
-      ctx.stroke();
-    }
+    if (seg) { const lw = Math.min(5, Math.abs(seg.w) * 0.3 + 0.5); ctx.beginPath(); ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2); ctx.strokeStyle = '#fff'; ctx.lineWidth = lw + 3; ctx.stroke(); }
   }
 
-  // Draw neurons
+  // Neurons
   neuronPositions = [];
   const layerLabels = ['Input', ...layers.map((_, i) => i < layers.length - 1 ? `Hidden ${i + 1}` : 'Output')];
-
   for (let li = 0; li < numLayers; li++) {
-    // Layer label
-    const labelPos = neuronPos(li, 0);
-    ctx.fillStyle = '#888';
-    ctx.font = '12px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(layerLabels[li], labelPos.x, padY - 25);
-
+    const lp = neuronPos(li, 0);
+    ctx.fillStyle = '#888'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(layerLabels[li], lp.x, padY - 25);
     for (let ni = 0; ni < layerSizes[li]; ni++) {
       const pos = neuronPos(li, ni);
-      const radius = 30;
-      neuronPositions.push({ x: pos.x, y: pos.y, radius });
-
-      // Neuron fill based on activation
-      let value = null;
-      if (activations && activations[li]) {
-        value = activations[li][ni];
-      }
-
-      let fillColor = '#2a2a4a';
+      const r = 30;
+      neuronPositions.push({ x: pos.x, y: pos.y, radius: r });
+      let value = activationsData && activationsData[li] ? activationsData[li][ni] : null;
+      let fill = '#2a2a4a';
       if (value !== null && value !== undefined) {
-        const intensity = Math.min(1, Math.max(0, value));
-        const r = Math.round(30 + intensity * 100);
-        const g = Math.round(30 + intensity * 180);
-        const b = Math.round(70 + intensity * 140);
-        fillColor = `rgb(${r}, ${g}, ${b})`;
+        const t = Math.min(1, Math.max(0, value));
+        fill = `rgb(${Math.round(30 + t * 100)},${Math.round(30 + t * 180)},${Math.round(70 + t * 140)})`;
       }
-
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = fillColor;
-      ctx.fill();
-      ctx.strokeStyle = '#555';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Label inside neuron
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 11px system-ui';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill();
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       if (li === 0) {
-        ctx.fillText(INPUT_LABELS[ni], pos.x, pos.y - 6);
-        if (value !== null && value !== undefined) {
-          ctx.font = '10px system-ui';
-          ctx.fillText(value.toFixed(2), pos.x, pos.y + 8);
-        }
+        ctx.fillText(INPUT_LABELS[ni] || `In${ni}`, pos.x, pos.y - 6);
+        if (value != null) { ctx.font = '10px system-ui'; ctx.fillText(value.toFixed(2), pos.x, pos.y + 8); }
       } else if (li === numLayers - 1) {
-        ctx.fillText(LABELS[ni], pos.x, pos.y - 6);
-        if (value !== null && value !== undefined) {
-          ctx.font = '10px system-ui';
-          ctx.fillText((value * 100).toFixed(1) + '%', pos.x, pos.y + 8);
-        }
+        ctx.fillText(LABELS[ni] || `C${ni}`, pos.x, pos.y - 6);
+        if (value != null) { ctx.font = '10px system-ui'; ctx.fillText((value * 100).toFixed(1) + '%', pos.x, pos.y + 8); }
       } else {
-        if (value !== null && value !== undefined) {
-          ctx.fillText(value.toFixed(3), pos.x, pos.y);
-        }
+        if (value != null) ctx.fillText(value.toFixed(3), pos.x, pos.y);
       }
-
-      // Bias label (for non-input layers)
       if (li > 0) {
         const neuron = layers[li - 1].neurons[ni];
-        ctx.fillStyle = '#666';
-        ctx.font = '10px system-ui';
-        ctx.fillText('b=' + neuron.bias.toFixed(2), pos.x, pos.y + radius + 12);
+        ctx.fillStyle = '#666'; ctx.font = '10px system-ui';
+        ctx.fillText('b=' + neuron.bias.toFixed(2), pos.x, pos.y + r + 12);
       }
     }
   }
@@ -246,79 +582,62 @@ function draw() {
 
 function runPrediction() {
   if (!model) return;
-  const height = parseFloat(document.getElementById('inputHeight').value);
-  const weight = parseFloat(document.getElementById('inputWeight').value);
-  const norm = normalize([height, weight]);
-  activations = forwardPass(norm);
-
-  const output = activations[activations.length - 1];
+  const h = parseFloat(document.getElementById('inputHeight').value);
+  const w = parseFloat(document.getElementById('inputWeight').value);
+  const norm = normalizeRaw([h, w]);
+  activationsData = forwardPassVis(norm);
+  const output = activationsData[activationsData.length - 1];
   const maxIdx = output.indexOf(Math.max(...output));
   document.getElementById('prediction').innerHTML =
-    `Prediction: <strong style="color: #4fc3f7;">${LABELS[maxIdx]}</strong> ` +
-    `(${(output[maxIdx] * 100).toFixed(1)}%) &nbsp; [${output.map((v, i) => `${LABELS[i]}: ${(v * 100).toFixed(1)}%`).join(', ')}]`;
-
+    `Prediction: <strong style="color:#4fc3f7;">${LABELS[maxIdx] || 'Class ' + maxIdx}</strong> ` +
+    `(${(output[maxIdx] * 100).toFixed(1)}%) &nbsp; [${output.map((v, i) => `${LABELS[i] || 'C' + i}: ${(v * 100).toFixed(1)}%`).join(', ')}]`;
   draw();
 }
 
-// Load model
-fetch('trained.json')
-  .then(r => r.json())
-  .then(data => {
-    model = data;
-    draw();
-    runPrediction();
-  })
-  .catch(err => {
-    document.getElementById('info').textContent = 'Error loading trained.json: ' + err.message;
-  });
-
-// Hover detection
-function distToSegment(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1, dy = y2 - y1;
-  const lenSq = dx * dx + dy * dy;
+// =====================================================================
+//  Hover detection
+// =====================================================================
+function distToSeg(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1, lenSq = dx * dx + dy * dy;
   let t = lenSq === 0 ? 0 : ((px - x1) * dx + (py - y1) * dy) / lenSq;
   t = Math.max(0, Math.min(1, t));
   const nx = x1 + t * dx, ny = y1 + t * dy;
   return Math.sqrt((px - nx) ** 2 + (py - ny) ** 2);
 }
 
-const canvas = document.getElementById('canvas');
-const tooltip = document.getElementById('tooltip');
+const cvs = document.getElementById('canvas');
+const tip = document.getElementById('tooltip');
 
-canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
+cvs.addEventListener('mousemove', e => {
+  const rect = cvs.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-
-  // Suppress hover when cursor is over a neuron circle
   const onCircle = neuronPositions.some(n => Math.sqrt((mx - n.x) ** 2 + (my - n.y) ** 2) <= n.radius);
-
   let closest = null, closestDist = Infinity;
-  if (!onCircle) {
-    for (const seg of weightSegments) {
-      const d = distToSegment(mx, my, seg.x1, seg.y1, seg.x2, seg.y2);
-      if (d < closestDist) { closestDist = d; closest = seg; }
-    }
-  }
-
-  const threshold = 8;
-  if (!onCircle && closest && closestDist < threshold) {
+  if (!onCircle) for (const seg of weightSegments) { const d = distToSeg(mx, my, seg.x1, seg.y1, seg.x2, seg.y2); if (d < closestDist) { closestDist = d; closest = seg; } }
+  if (!onCircle && closest && closestDist < 8) {
     hoveredSegment = closest;
-    tooltip.style.display = 'block';
-    tooltip.style.left = (e.clientX + 12) + 'px';
-    tooltip.style.top = (e.clientY - 10) + 'px';
-    tooltip.textContent = `w = ${closest.w.toFixed(4)}`;
-  } else {
-    hoveredSegment = null;
-    tooltip.style.display = 'none';
-  }
+    tip.style.display = 'block'; tip.style.left = (e.clientX + 12) + 'px'; tip.style.top = (e.clientY - 10) + 'px';
+    tip.textContent = `w = ${closest.w.toFixed(4)}`;
+  } else { hoveredSegment = null; tip.style.display = 'none'; }
   draw();
 });
 
-canvas.addEventListener('mouseleave', () => {
-  hoveredSegment = null;
-  tooltip.style.display = 'none';
-  draw();
-});
+cvs.addEventListener('mouseleave', () => { hoveredSegment = null; tip.style.display = 'none'; draw(); });
+
+// =====================================================================
+//  Auto-load existing trained.json if available (for backward compat)
+// =====================================================================
+fetch('trained.json')
+  .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
+  .then(data => {
+    model = Net.fromJSON(data);
+    const outSize = model.layers[model.layers.length - 1].neurons.length;
+    if (LABELS.length !== outSize) LABELS = Array.from({ length: outSize }, (_, i) => `Class ${i}`);
+    draw();
+    runPrediction();
+    clog('Loaded existing trained.json model.', 'log-info');
+  })
+  .catch(() => { clog('No pre-trained model loaded. Configure and train a network above.', 'log-info'); });
 </script>
 </body>
 </html>
