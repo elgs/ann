@@ -13,9 +13,9 @@ export function setActivation(act: string) { activation = act; }
 export function getActivation() { return activation; }
 
 class Neuron {
-  output: number = 0;
-  delta: number = 0;
-  weights: number[] = [];
+  output: number = 0; // raw output for the last layer, activated output for the hidden layers
+  delta: number = 0; // the derivative of the loss with respect to the input of the activation function of this neuron
+  weights: number[] = []; // weights of each neuron in the previous layer
   bias: number = 0;
 }
 
@@ -111,7 +111,7 @@ export class Net {
     const lastLayer = this.layers[this.layers.length - 1];
     for (let i = 0; i < lastLayer.neurons.length; ++i) {
       const neuron = lastLayer.neurons[i];
-      neuron.delta = dLastLayerOutputs[i];
+      neuron.delta = dLastLayerOutputs[i]; // * 1, assuming the activation function for each neuron in the last layer is itself (identity)
     }
     for (let i = this.layers.length - 2; i >= 0; --i) {
       this.backward(this.layers[i], this.layers[i + 1]);
