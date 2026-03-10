@@ -315,8 +315,18 @@ function forwardPassVis(input) {
 function draw() {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!model) return;
+  const scrollEl = document.getElementById('canvasScroll');
+  const refW = document.querySelector('.panels').offsetWidth;
+
+  if (!model) {
+    canvas.width = refW;
+    canvas.height = 700;
+    canvas.style.width = canvas.width + 'px';
+    canvas.style.height = canvas.height + 'px';
+    scrollEl.style.maxWidth = canvas.width + 'px';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
 
   const layers = model.layers;
   const numLayers = layers.length + 1;
@@ -329,8 +339,6 @@ function draw() {
   const minHeight = maxNeurons * neuronSpacing + padY * 2;
   const minWidth = (numLayers - 1) * layerSpacingMin + padX * 2;
   canvas.height = Math.max(700, minHeight);
-  const scrollEl = document.getElementById('canvasScroll');
-  const refW = document.querySelector('.panels').offsetWidth;
   canvas.width = Math.max(refW, minWidth);
   canvas.style.width = canvas.width + 'px';
   canvas.style.height = canvas.height + 'px';
@@ -463,6 +471,7 @@ window.exportModel = exportModel;
 window.importModel = importModel;
 window.runPrediction = runPrediction;
 
+draw();
 clog('Configure the network architecture above and click Train Network to start.', 'log-info');
 startTraining();
 </script>
