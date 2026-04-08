@@ -75,4 +75,7 @@ const normalize = (data: { in0: number[], in?: number[] }[]) => {
 
 Deno.writeTextFileSync('train.json', JSON.stringify(gen(1000), null, 2));
 Deno.writeTextFileSync('test.json', JSON.stringify(gen(200), null, 2));
+Deno.mkdirSync('data/gender', { recursive: true });
+Deno.writeTextFileSync('data/gender/train.json', JSON.stringify(gen(1000), null, 2));
+Deno.writeTextFileSync('data/gender/test.json', JSON.stringify(gen(200), null, 2));
 

@@ -64,6 +64,10 @@
     <div class="ui-panel-header"><h3 class="ui-panel-title">Network Architecture</h3></div>
     <div class="ui-panel-body">
       <div class="ui-field">
+        <label class="ui-label">Dataset</label>
+        <select class="ui-select sm" id="cfgDataset" onchange="selectDataset(this.value)"></select>
+      </div>
+      <div class="ui-field">
         <label class="ui-label">Hidden layers (comma-separated sizes)</label>
         <input class="ui-input sm" type="text" id="cfgLayers" value="3, 4" placeholder="e.g. 3, 4">
       </div>
@@ -123,14 +127,7 @@
 
 <!-- ==================== Predict ==================== -->
 <div id="predict-controls">
-  <div class="ui-field">
-    <label class="ui-label">Height (ft)</label>
-    <input class="ui-input sm" type="number" id="inputHeight" value="5.5" step="0.1" min="3" max="7">
-  </div>
-  <div class="ui-field">
-    <label class="ui-label">Weight (lbs)</label>
-    <input class="ui-input sm" type="number" id="inputWeight" value="130" step="5" min="40" max="200">
-  </div>
+  <!-- populated dynamically from dataset metadata -->
   <button class="ui-btn sm" onclick="runPrediction()">Predict</button>
 </div>
 <div id="prediction" class="ui-alert"></div>
@@ -152,14 +149,61 @@
 import { Net, activations, shuffle, setActivation, getActivation } from './ann_bundle.js';
 
 // =====================================================================
-//  Data loading
+//  Data loading & dataset management
 // =====================================================================
-const IN_BOUNDS = [[3.5, 6.5], [50, 170]];
-const INPUT_LABELS = ['Height', 'Weight'];
+let datasets = [];
+let currentDataset = null;
 
-async function loadData(url) {
+async function loadJSON(url) {
   const resp = await fetch(url);
   return resp.json();
+}
+
+async function loadDatasets() {
+  datasets = await loadJSON('data/datasets.json');
+  const sel = document.getElementById('cfgDataset');
+  sel.innerHTML = '';
+  for (const ds of datasets) {
+    const opt = document.createElement('option');
+    opt.value = ds.id;
+    opt.textContent = ds.name;
+    sel.appendChild(opt);
+  }
+  if (datasets.length > 0) selectDataset(datasets[0].id);
+}
+
+function selectDataset(id) {
+  currentDataset = datasets.find(d => d.id === id);
+  if (!currentDataset) return;
+  const ds = currentDataset;
+
+  // Populate config defaults
+  document.getElementById('cfgLayers').value = ds.defaults.hiddenLayers;
+  document.getElementById('cfgLabels').value = ds.outputLabels.join(', ');
+  document.getElementById('cfgActivation').value = ds.defaults.activation;
+  document.getElementById('cfgLR').value = ds.defaults.learningRate;
+  document.getElementById('cfgEpochs').value = ds.defaults.epochs;
+
+  // Rebuild prediction input fields
+  const controls = document.getElementById('predict-controls');
+  const btn = controls.querySelector('button');
+  controls.querySelectorAll('.ui-field').forEach(f => f.remove());
+  for (let i = 0; i < ds.inputLabels.length; ++i) {
+    const field = document.createElement('div');
+    field.className = 'ui-field';
+    const label = document.createElement('label');
+    label.className = 'ui-label';
+    label.textContent = ds.inputLabels[i];
+    const input = document.createElement('input');
+    input.className = 'ui-input sm';
+    input.type = 'number';
+    input.id = 'predictInput' + i;
+    input.value = ds.predictDefaults[i];
+    input.step = 'any';
+    field.appendChild(label);
+    field.appendChild(input);
+    controls.insertBefore(field, btn);
+  }
 }
 
 // =====================================================================
@@ -183,13 +227,15 @@ let activationsData = null;  // per-layer activations after a forward pass
 let weightSegments = [];
 let hoveredSegment = null;
 let neuronPositions = [];
-let LABELS = ['Male', 'Female', 'Child'];
+let LABELS = [];
 let trainingAborted = false;
 
 // =====================================================================
 //  Training
 // =====================================================================
 async function startTraining() {
+  if (!currentDataset) { clog('No dataset selected.', 'log-error'); return; }
+
   const btnTrain = document.getElementById('btnTrain');
   const btnStop = document.getElementById('btnStop');
   btnTrain.disabled = true;
@@ -201,26 +247,29 @@ async function startTraining() {
   const hiddenSizes = hiddenText.split(',').map(s => parseInt(s.trim(), 10)).filter(n => n > 0);
   LABELS = document.getElementById('cfgLabels').value.split(',').map(s => s.trim()).filter(Boolean);
   const numClasses = LABELS.length;
+  const inputSize = currentDataset.inputLabels.length;
   const outputSizes = [...hiddenSizes, numClasses];
   setActivation(document.getElementById('cfgActivation').value);
   const lr = parseFloat(document.getElementById('cfgLR').value) || 0.05;
   const epochs = parseInt(document.getElementById('cfgEpochs').value, 10) || 100;
 
   clog(`== Configuration ==`, 'log-info');
-  clog(`  Input: 2 (Height, Weight)`);
+  clog(`  Dataset: ${currentDataset.name}`);
+  clog(`  Input: ${inputSize} (${currentDataset.inputLabels.join(', ')})`);
   clog(`  Hidden layers: [${hiddenSizes.join(', ')}]`);
   clog(`  Output: ${numClasses} (${LABELS.join(', ')})`);
   clog(`  Activation: ${getActivation()}  |  LR: ${lr}  |  Epochs: ${epochs}`);
   clog('');
 
-  // Generate data
+  // Load data from dataset folder
   clog('Loading training data...', 'log-info');
-  const trainData = await loadData('train.json');
-  const testData = await loadData('test.json');
+  const basePath = `data/${currentDataset.id}/`;
+  const trainData = await loadJSON(basePath + 'train.json');
+  const testData = await loadJSON(basePath + 'test.json');
   clog(`  ${trainData.length} training samples, ${testData.length} test samples loaded.`, 'log-success');
 
   // Create network
-  model = new Net(2, outputSizes, lr);
+  model = new Net(inputSize, outputSizes, lr);
   draw();
   clog('Network created. Starting training...\n', 'log-info');
 
@@ -305,10 +354,14 @@ function importModel(e) {
 }
 
 // =====================================================================
-//  Prediction & visualisation  (kept from original)
+//  Prediction & visualisation
 // =====================================================================
 function normalizeRaw(raw) {
-  return raw.map((v, i) => (v - IN_BOUNDS[i][0]) / (IN_BOUNDS[i][1] - IN_BOUNDS[i][0]));
+  if (!currentDataset) return raw;
+  return raw.map((v, i) => {
+    const [min, max] = currentDataset.inputBounds[i];
+    return (v - min) / (max - min);
+  });
 }
 
 function forwardPassVis(input) {
@@ -416,7 +469,7 @@ function draw() {
       ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       if (li === 0) {
-        ctx.fillText(INPUT_LABELS[ni] || `In${ni}`, pos.x, pos.y - 6);
+        ctx.fillText((currentDataset?.inputLabels[ni]) || `In${ni}`, pos.x, pos.y - 6);
         if (value != null) { ctx.font = '10px system-ui'; ctx.fillText(value.toFixed(2), pos.x, pos.y + 8); }
       } else if (li === numLayers - 1) {
         ctx.fillText(LABELS[ni] || `C${ni}`, pos.x, pos.y - 6);
@@ -434,10 +487,12 @@ function draw() {
 }
 
 function runPrediction() {
-  if (!model) return;
-  const h = parseFloat(document.getElementById('inputHeight').value);
-  const w = parseFloat(document.getElementById('inputWeight').value);
-  const norm = normalizeRaw([h, w]);
+  if (!model || !currentDataset) return;
+  const rawInputs = currentDataset.inputLabels.map((_, i) => {
+    const el = document.getElementById('predictInput' + i);
+    return el ? parseFloat(el.value) : 0;
+  });
+  const norm = normalizeRaw(rawInputs);
   activationsData = forwardPassVis(norm);
   const output = activationsData[activationsData.length - 1];
   const maxIdx = output.indexOf(Math.max(...output));
@@ -484,10 +539,14 @@ window.clearConsole = clearConsole;
 window.exportModel = exportModel;
 window.importModel = importModel;
 window.runPrediction = runPrediction;
+window.selectDataset = selectDataset;
 
 draw();
-clog('Configure the network architecture above and click Train Network to start.', 'log-info');
-startTraining();
+clog('Loading datasets...', 'log-info');
+loadDatasets().then(() => {
+  clog('Configure the network architecture above and click Train Network to start.', 'log-info');
+  startTraining();
+});
 </script>
 </body>
 </html>
