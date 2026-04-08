@@ -1,37 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-ui-theme="nord">
 <head>
 <meta charset="UTF-8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
 <title>Neural Network — Train & Visualize</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/az-code-lab/ui@latest/src/ui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/az-code-lab/ui@latest/src/icons.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/az-code-lab/ui@latest/src/themes/nord.css">
+<script>
+  // Follow system dark/light preference
+  function applyTheme() {
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  }
+  applyTheme();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+</script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
-  h1 { margin-bottom: 14px; color: #e94560; }
+  body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; background: var(--ui-bg); color: var(--ui-text); }
+  h1 { margin-bottom: 14px; }
 
-  /* ---------- panels ---------- */
+  /* ---------- layout ---------- */
   .panels { display: flex; gap: 20px; width: 100%; max-width: 1200px; margin-bottom: 18px; flex-wrap: wrap; }
-  .panel { background: #16213e; border-radius: 8px; padding: 16px; flex: 1; min-width: 280px; }
-  .panel h2 { font-size: 15px; color: #e94560; margin-bottom: 10px; }
-  .panel label { font-size: 13px; display: block; margin-bottom: 6px; }
-  .panel input, .panel select { width: 100%; padding: 5px 8px; border: 1px solid #444; border-radius: 4px; background: #0f3460; color: #e0e0e0; font-size: 13px; margin-bottom: 8px; }
-  .panel input[type="number"] { width: 100%; }
-
-  /* ---------- buttons ---------- */
-  .btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600; }
-  .btn-primary { background: #e94560; color: white; }
-  .btn-primary:hover { background: #c73650; }
-  .btn-primary:disabled { background: #555; cursor: not-allowed; }
-  .btn-secondary { background: #0f3460; color: #e0e0e0; border: 1px solid #444; }
-  .btn-secondary:hover { background: #1a4a7a; }
+  .panels > .ui-panel { flex: 1; min-width: 280px; }
   .btn-row { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
 
   /* ---------- console ---------- */
   #console {
     width: 100%; max-width: 1200px; height: 260px; overflow-y: auto;
-    background: #0d1117; border: 1px solid #333; border-radius: 6px;
+    background: var(--ui-bg-alt, #0d1117); border: 1px solid var(--ui-border, #333); border-radius: 6px;
     padding: 10px 14px; font-family: 'Menlo', 'Consolas', monospace;
-    font-size: 12px; line-height: 1.5; color: #c9d1d9; margin-bottom: 18px;
+    font-size: 12px; line-height: 1.5; margin-bottom: 18px;
     white-space: pre-wrap; word-break: break-all;
   }
   #console .log-info { color: #58a6ff; }
@@ -40,21 +39,19 @@
   #console .log-error { color: #f85149; }
 
   /* ---------- prediction row ---------- */
-  #predict-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-  #predict-controls label { font-size: 13px; }
-  #predict-controls input { width: 80px; padding: 4px 8px; border: 1px solid #444; border-radius: 4px; background: #16213e; color: #e0e0e0; }
-  #prediction { margin-bottom: 14px; font-size: 15px; padding: 10px 20px; background: #16213e; border-radius: 6px; min-height: 36px; max-width: 1200px; width: 100%; }
+  #predict-controls { display: flex; gap: 12px; align-items: end; margin-bottom: 12px; flex-wrap: wrap; max-width: 1200px; }
+  #predict-controls .ui-field { margin-bottom: 0; }
+  #predict-controls .ui-input { width: 90px; }
+  #prediction { margin-bottom: 14px; font-size: 15px; max-width: 1200px; width: 100%; }
 
   /* ---------- canvas ---------- */
   .canvas-scroll { width: 100%; max-width: 1200px; margin: 0 auto; overflow-x: auto; border-radius: 8px; }
-  canvas { border-radius: 8px; background: #16213e; cursor: crosshair; display: block; margin: 0 auto; }
+  canvas { border-radius: 8px; background: var(--ui-bg-alt, #16213e); cursor: crosshair; display: block; margin: 0 auto; }
   #tooltip { position: absolute; pointer-events: none; background: rgba(0,0,0,0.85); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: none; white-space: nowrap; border: 1px solid #555; }
   .legend { display: flex; gap: 20px; margin-top: 10px; font-size: 13px; }
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-swatch { width: 30px; height: 4px; border-radius: 2px; }
-  #info { margin-top: 12px; font-size: 13px; color: #888; max-width: 1200px; text-align: center; }
-  .progress-bar-container { width:100%; background:#0f3460; border-radius:4px; height:8px; margin-top:6px; overflow:hidden; }
-  .progress-bar { height:100%; background:#e94560; width:0%; transition: width 0.2s; border-radius:4px; }
+  #info { margin-top: 12px; font-size: 13px; opacity: 0.6; max-width: 1200px; text-align: center; }
 </style>
 </head>
 <body>
@@ -63,50 +60,61 @@
 <!-- ==================== Configuration Panels ==================== -->
 <div class="panels">
   <!-- Network architecture -->
-  <div class="panel">
-    <h2>Network Architecture</h2>
-    <label>Hidden layers (comma-separated sizes):
-      <input type="text" id="cfgLayers" value="3, 4" placeholder="e.g. 3, 4">
-    </label>
-    <label>Output classes (comma-separated labels):
-      <input type="text" id="cfgLabels" value="Male, Female, Child">
-    </label>
-    <label>Activation:
-      <select id="cfgActivation">
-        <option value="sigmoid" selected>Sigmoid</option>
-        <option value="relu">ReLU</option>
-      </select>
-    </label>
+  <div class="ui-panel">
+    <div class="ui-panel-header"><h3 class="ui-panel-title">Network Architecture</h3></div>
+    <div class="ui-panel-body">
+      <div class="ui-field">
+        <label class="ui-label">Hidden layers (comma-separated sizes)</label>
+        <input class="ui-input sm" type="text" id="cfgLayers" value="3, 4" placeholder="e.g. 3, 4">
+      </div>
+      <div class="ui-field">
+        <label class="ui-label">Output classes (comma-separated labels)</label>
+        <input class="ui-input sm" type="text" id="cfgLabels" value="Male, Female, Child">
+      </div>
+      <div class="ui-field">
+        <label class="ui-label">Activation</label>
+        <select class="ui-select sm" id="cfgActivation">
+          <option value="sigmoid" selected>Sigmoid</option>
+          <option value="relu">ReLU</option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <!-- Training parameters -->
-  <div class="panel">
-    <h2>Training Parameters</h2>
-    <label>Learning rate:
-      <input type="number" id="cfgLR" value="0.05" step="0.005" min="0.001" max="1">
-    </label>
-    <label>Epochs:
-      <input type="number" id="cfgEpochs" value="100" min="1" max="10000">
-    </label>
+  <div class="ui-panel">
+    <div class="ui-panel-header"><h3 class="ui-panel-title">Training Parameters</h3></div>
+    <div class="ui-panel-body">
+      <div class="ui-field">
+        <label class="ui-label">Learning rate</label>
+        <input class="ui-input sm" type="number" id="cfgLR" value="0.05" step="0.005" min="0.001" max="1">
+      </div>
+      <div class="ui-field">
+        <label class="ui-label">Epochs</label>
+        <input class="ui-input sm" type="number" id="cfgEpochs" value="100" min="1" max="10000">
+      </div>
+    </div>
   </div>
 
   <!-- Actions -->
-  <div class="panel">
-    <h2>Actions</h2>
-    <div class="btn-row">
-      <button class="btn btn-primary" id="btnTrain" onclick="startTraining()">Train Network</button>
-      <button class="btn btn-secondary" id="btnStop" onclick="stopTraining()" disabled>Stop</button>
-      <button class="btn btn-secondary" onclick="clearConsole()">Clear Console</button>
+  <div class="ui-panel">
+    <div class="ui-panel-header"><h3 class="ui-panel-title">Actions</h3></div>
+    <div class="ui-panel-body">
+      <div class="btn-row">
+        <button class="ui-btn sm" id="btnTrain" onclick="startTraining()">Train Network</button>
+        <button class="ui-btn sm outline secondary" id="btnStop" onclick="stopTraining()" disabled>Stop</button>
+        <button class="ui-btn sm outline secondary" onclick="clearConsole()">Clear Console</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="ui-btn sm outline secondary" onclick="exportModel()">Export Model JSON</button>
+        <button class="ui-btn sm outline secondary" onclick="document.getElementById('importFile').click()">Import Model JSON</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importModel(event)">
+      </div>
+      <div class="ui-progress sm" id="progressContainer" style="display:none; margin-top:8px;">
+        <div class="ui-progress-bar" id="progressBar" style="width:0%"></div>
+      </div>
+      <div id="statusLine" style="font-size:12px; margin-top:8px; opacity:0.6;"></div>
     </div>
-    <div class="btn-row" style="margin-top:10px;">
-      <button class="btn btn-secondary" onclick="exportModel()">Export Model JSON</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Import Model JSON</button>
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importModel(event)">
-    </div>
-    <div class="progress-bar-container" id="progressContainer" style="display:none;">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-    <div id="statusLine" style="font-size:12px; margin-top:8px; color:#888;"></div>
   </div>
 </div>
 
@@ -115,11 +123,17 @@
 
 <!-- ==================== Predict ==================== -->
 <div id="predict-controls">
-  <label>Height (ft): <input type="number" id="inputHeight" value="5.5" step="0.1" min="3" max="7"></label>
-  <label>Weight (lbs): <input type="number" id="inputWeight" value="130" step="5" min="40" max="200"></label>
-  <button class="btn btn-primary" onclick="runPrediction()">Predict</button>
+  <div class="ui-field">
+    <label class="ui-label">Height (ft)</label>
+    <input class="ui-input sm" type="number" id="inputHeight" value="5.5" step="0.1" min="3" max="7">
+  </div>
+  <div class="ui-field">
+    <label class="ui-label">Weight (lbs)</label>
+    <input class="ui-input sm" type="number" id="inputWeight" value="130" step="5" min="40" max="200">
+  </div>
+  <button class="ui-btn sm" onclick="runPrediction()">Predict</button>
 </div>
-<div id="prediction"></div>
+<div id="prediction" class="ui-alert"></div>
 
 <!-- ==================== Canvas ==================== -->
 <div class="canvas-scroll" id="canvasScroll"><canvas id="canvas" width="1000" height="700"></canvas></div>
@@ -129,7 +143,7 @@
   <div class="legend-item"><div class="legend-swatch" style="background: #ef5350;"></div> Negative weight</div>
   <div class="legend-item">Line thickness = |weight|</div>
 </div>
-<div id="info">Define the network architecture above, then click <strong>Train Network</strong>. Training runs entirely in your browser — no server required. <a href="https://github.com/elgs/ann" style="color: #4fc3f7;">GitHub</a></div>
+<div id="info">Define the network architecture above, then click <strong>Train Network</strong>. Training runs entirely in your browser — no server required. <a href="https://github.com/elgs/ann">GitHub</a></div>
 
 <script type="module">
 // =====================================================================
